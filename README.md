@@ -24,6 +24,7 @@ You can support this project by making a donation to help ensure its sustainabil
 * **Multilingual:** Fully supports 15+ languages including Arabic, Chinese, English, Turkish, and more.
 * **Portable:** No installation required. Simply extract the ZIP and manage your contacts anywhere.
 * **Truly Free:** High-end management features provided at no cost, with no hidden fees or paywalls.
+* **Built-in Update Mechanism:** It features a built-in smart update mechanism developed specifically by **Türkaysoft**.
 
 ---
 
