@@ -107,28 +107,36 @@ namespace VCardix{
         public bool DeleteContact(Guid id){ return contactsById.Remove(id); }
         // ENCODE & DECODE QUOTED PRINTABLE
         // ======================================================================================================
-        public static string EncodeQuotedPrintable(string input, int maxLineLength = 76){
-            if (string.IsNullOrEmpty(input)){
-                return string.Empty;
-            }
+        public static string EncodeQuotedPrintable(string input, int maxLineLength = 76)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
             var bytes = Encoding.UTF8.GetBytes(input);
             var sb = new StringBuilder();
             int linePos = 0;
-            for (int i = 0; i < bytes.Length; i++){
+            for (int i = 0; i < bytes.Length; i++)
+            {
                 byte b = bytes[i];
                 string toAppend;
                 bool isPrintable = (b >= 33 && b <= 60) || (b >= 62 && b <= 126);
-                if (b == 61){
+                if (b == 61)
+                {
                     toAppend = "=3D";
-                }else if (isPrintable){
+                }
+                else if (isPrintable)
+                {
                     toAppend = ((char)b).ToString();
-                }else if (b == 9 || b == 32){
+                }
+                else if (b == 9 || b == 32)
+                {
                     bool atLineEnd = (i == bytes.Length - 1) || (linePos + 1 >= maxLineLength);
                     toAppend = atLineEnd ? "=" + b.ToString("X2") : ((char)b).ToString();
-                }else{
+                }
+                else
+                {
                     toAppend = "=" + b.ToString("X2");
                 }
-                if (linePos + toAppend.Length > maxLineLength - 1){
+                if (linePos + toAppend.Length > maxLineLength - 3)
+                {
                     sb.Append("=\r\n");
                     linePos = 0;
                 }
@@ -137,23 +145,29 @@ namespace VCardix{
             }
             return sb.ToString();
         }
-        public static string DecodeQuotedPrintable(string input){
-            if (string.IsNullOrEmpty(input))
-                return string.Empty;
+        public static string DecodeQuotedPrintable(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
             input = Regex.Replace(input, @"=\r?\n", "");
-            if (input.EndsWith("="))
-                input = input.Substring(0, input.Length - 1);
+            input = Regex.Replace(input, @"=\s*$", "");
             var bytes = new List<byte>();
-            for (int i = 0; i < input.Length; i++){
-                if (input[i] == '=' && i + 2 < input.Length){
+            for (int i = 0; i < input.Length; i++)
+            {
+                if (input[i] == '=' && i + 2 < input.Length)
+                {
                     string hex = input.Substring(i + 1, 2);
-                    if (byte.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b)){
+                    if (byte.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b))
+                    {
                         bytes.Add(b);
                         i += 2;
-                    }else{
+                    }
+                    else
+                    {
                         bytes.Add((byte)'=');
                     }
-                }else{
+                }
+                else
+                {
                     bytes.Add((byte)input[i]);
                 }
             }
@@ -243,17 +257,20 @@ namespace VCardix{
                         string header = (idx > 0 ? line.Substring(0, idx) : line).ToUpperInvariant();
                         string value = (idx > 0 ? line.Substring(idx + 1).Trim() : "");
                         value = UnescapeTextV21(value);
-                        if (header.Contains("CELL"))
+                        if (header.Contains("CELL") || header.Contains("MOBILE"))
                             current.PhoneMobile = value;
                         else if (header.Contains("HOME"))
                             current.PhoneHome = value;
                         else if (header.Contains("WORK"))
                             current.PhoneWork = value;
                     }
-                    else if (line.StartsWith("EMAIL;", StringComparison.OrdinalIgnoreCase)){
+                    else if (line.StartsWith("EMAIL", StringComparison.OrdinalIgnoreCase)){
                         var idx = line.IndexOf(':');
                         if (idx >= 0){
-                            var email = UnescapeTextV21(line.Substring(idx + 1).Trim());
+                            var email = line.Substring(idx + 1).Trim();
+                            if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                                email = DecodeQuotedPrintable(email);
+                            email = UnescapeTextV21(email);
                             if (string.IsNullOrEmpty(current.Email1))
                                 current.Email1 = email;
                             else if (string.IsNullOrEmpty(current.Email2))
@@ -272,12 +289,24 @@ namespace VCardix{
                             current.Address = adr.Replace(";", "||");
                         }
                     }
-                    else if (line.StartsWith("ORG:", StringComparison.OrdinalIgnoreCase))
-                        current.Organization = UnescapeTextV21(line.Substring(4).Trim());
-                    else if (line.StartsWith("URL:", StringComparison.OrdinalIgnoreCase))
-                        current.Website = UnescapeTextV21(line.Substring(4).Trim());
-                    else if (line.StartsWith("NOTE:", StringComparison.OrdinalIgnoreCase))
-                        current.Note = UnescapeTextV21(line.Substring(5).Trim());
+                    else if (line.StartsWith("ORG:", StringComparison.OrdinalIgnoreCase)){
+                        var org = line.Substring(4).Trim();
+                        if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                            org = DecodeQuotedPrintable(org);
+                        current.Organization = UnescapeTextV21(org);
+                    }
+                    else if (line.StartsWith("URL:", StringComparison.OrdinalIgnoreCase)){
+                        var url = line.Substring(4).Trim();
+                        if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                            url = DecodeQuotedPrintable(url);
+                        current.Website = UnescapeTextV21(url);
+                    }
+                    else if (line.StartsWith("NOTE:", StringComparison.OrdinalIgnoreCase)){
+                        var note = line.Substring(5).Trim();
+                        if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                            note = DecodeQuotedPrintable(note);
+                        current.Note = UnescapeTextV21(note);
+                    }
                     else if (line.StartsWith("PHOTO", StringComparison.OrdinalIgnoreCase))
                         current.PhotoBase64 = TSImageHelper.ExtractPhotoBase64(string.Join("\n", block));
                 }
@@ -320,17 +349,17 @@ namespace VCardix{
                         if (c.Birthday.HasValue)
                             sb.AppendLine($"BDAY:{c.Birthday.Value:yyyy-MM-dd}");
                         if (!string.IsNullOrEmpty(c.PhoneMobile))
-                            sb.AppendLine($"TEL;TYPE=CELL:{EscapeTextV21(c.PhoneMobile)}");
+                            sb.AppendLine($"TEL;TYPE=CELL,VOICE:{EscapeTextV21(c.PhoneMobile)}");
                         if (!string.IsNullOrEmpty(c.PhoneHome))
-                            sb.AppendLine($"TEL;TYPE=HOME:{EscapeTextV21(c.PhoneHome)}");
+                            sb.AppendLine($"TEL;TYPE=HOME,VOICE:{EscapeTextV21(c.PhoneHome)}");
                         if (!string.IsNullOrEmpty(c.PhoneWork))
-                            sb.AppendLine($"TEL;TYPE=WORK:{EscapeTextV21(c.PhoneWork)}");
+                            sb.AppendLine($"TEL;TYPE=WORK,VOICE:{EscapeTextV21(c.PhoneWork)}");
                         if (!string.IsNullOrEmpty(c.Email1))
-                            sb.AppendLine($"EMAIL;INTERNET:{EscapeTextV21(c.Email1)}");
+                            sb.AppendLine($"EMAIL;TYPE=INTERNET:{EscapeTextV21(c.Email1)}");
                         if (!string.IsNullOrEmpty(c.Email2))
-                            sb.AppendLine($"EMAIL;INTERNET:{EscapeTextV21(c.Email2)}");
+                            sb.AppendLine($"EMAIL;TYPE=INTERNET:{EscapeTextV21(c.Email2)}");
                         if (!string.IsNullOrEmpty(c.Email3))
-                            sb.AppendLine($"EMAIL;INTERNET:{EscapeTextV21(c.Email3)}");
+                            sb.AppendLine($"EMAIL;TYPE=INTERNET:{EscapeTextV21(c.Email3)}");
                         {
                             var parts = (c.Address?.Split(new[] { "||" }, StringSplitOptions.None) ?? new string[0]).Select(EscapeTextV21).ToList();
                             while (parts.Count < 7) parts.Add("");
@@ -343,7 +372,7 @@ namespace VCardix{
                         if (!string.IsNullOrEmpty(c.Note))
                             sb.AppendLine($"NOTE:{EscapeTextV21(c.Note)}");
                         if (!string.IsNullOrEmpty(c.PhotoBase64))
-                            sb.AppendLine($"PHOTO;ENCODING=b;TYPE=PNG:\r\n{TSImageHelper.FoldBase64(c.PhotoBase64)}");
+                            sb.AppendLine($"PHOTO;ENCODING=BASE64;TYPE=PNG:\r\n{TSImageHelper.FoldBase64(c.PhotoBase64)}");
                         break;
                     // ==============================
                     //   VCF 3.0 & 4.0
@@ -365,11 +394,11 @@ namespace VCardix{
                         if (c.Birthday.HasValue)
                             sb.AppendLine($"BDAY:{c.Birthday.Value:yyyy-MM-dd}");
                         if (!string.IsNullOrEmpty(c.PhoneMobile))
-                            sb.AppendLine($"TEL;TYPE=CELL:{EscapeTextV3V4(c.PhoneMobile)}");
+                            sb.AppendLine($"TEL;TYPE=CELL,VOICE:{EscapeTextV3V4(c.PhoneMobile)}");
                         if (!string.IsNullOrEmpty(c.PhoneHome))
-                            sb.AppendLine($"TEL;TYPE=HOME:{EscapeTextV3V4(c.PhoneHome)}");
+                            sb.AppendLine($"TEL;TYPE=HOME,VOICE:{EscapeTextV3V4(c.PhoneHome)}");
                         if (!string.IsNullOrEmpty(c.PhoneWork))
-                            sb.AppendLine($"TEL;TYPE=WORK:{EscapeTextV3V4(c.PhoneWork)}");
+                            sb.AppendLine($"TEL;TYPE=WORK,VOICE:{EscapeTextV3V4(c.PhoneWork)}");
                         if (!string.IsNullOrEmpty(c.Email1))
                             sb.AppendLine($"EMAIL;TYPE=INTERNET:{EscapeTextV3V4(c.Email1)}");
                         if (!string.IsNullOrEmpty(c.Email2))
@@ -391,7 +420,7 @@ namespace VCardix{
                         {
                             if (CurrentVersion == VCardVersion.V30)
                             {
-                                sb.AppendLine($"PHOTO;ENCODING=b;TYPE=PNG:\r\n{TSImageHelper.FoldBase64(c.PhotoBase64)}");
+                                sb.AppendLine($"PHOTO;ENCODING=BASE64;TYPE=PNG:\r\n{TSImageHelper.FoldBase64(c.PhotoBase64)}");
                             }
                             else // V40
                             {
@@ -576,61 +605,63 @@ namespace VCardix{
         // IMAGE SET AND DISPOSE - IMAGE DYNAMIC DPI & DYNAMIC RESIZER
         // =========================
         public static void SetPictureBoxImage(PictureBox pictureBox, Image newImage){
-            pictureBox.Image?.Dispose();
-            pictureBox.Image = null;
+            if (pictureBox == null) return;
+            Image old = pictureBox.Image;
             if (newImage == null){
                 pictureBox.Image = null;
+                old?.Dispose();
                 return;
             }
             var resized = ResizeImageToDeviceDpi(newImage, pictureBox.Width, pictureBox.Height, pictureBox.DeviceDpi);
             pictureBox.Image = resized;
-            newImage.Dispose();
+            if (old != null && !ReferenceEquals(old, newImage))
+                old.Dispose();
         }
         public static Image ResizeImageToDeviceDpi(Image img, int maxWidth, int maxHeight, int deviceDpi){
-            int newWidth = (int)(img.Width * deviceDpi / img.HorizontalResolution);
-            int newHeight = (int)(img.Height * deviceDpi / img.VerticalResolution);
-            double ratio = Math.Min((double)maxWidth / newWidth, (double)maxHeight / newHeight);
-            newWidth = (int)(newWidth * ratio);
-            newHeight = (int)(newHeight * ratio);
-            var newImage = new Bitmap(newWidth, newHeight);
-            newImage.SetResolution(deviceDpi, deviceDpi);
-            using (var image_render = Graphics.FromImage(newImage)){
-                image_render.CompositingQuality = CompositingQuality.HighQuality;
-                image_render.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                image_render.SmoothingMode = SmoothingMode.HighQuality;
-                image_render.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                image_render.DrawImage(img, 0, 0, newWidth, newHeight);
+            int baseW = img.Width;
+            int baseH = img.Height;
+            float scale = deviceDpi / 96f;
+            int scaledW = (int)(baseW * scale);
+            int scaledH = (int)(baseH * scale);
+            double ratio = Math.Min((double)maxWidth / scaledW, (double)maxHeight / scaledH);
+            int finalW = Math.Max(1, (int)(scaledW * ratio));
+            int finalH = Math.Max(1, (int)(scaledH * ratio));
+            var bmp = new Bitmap(finalW, finalH);
+            bmp.SetResolution(deviceDpi, deviceDpi);
+            using (var g = Graphics.FromImage(bmp)){
+                g.CompositingQuality = CompositingQuality.HighQuality;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.DrawImage(img, 0, 0, finalW, finalH);
             }
-            return newImage;
+            return bmp;
         }
         // IMAGE TO BASE64
         // =========================
         public static Image ImageFromBase64(string base64){
-            if (string.IsNullOrEmpty(base64))
-                return null;
+            if (string.IsNullOrEmpty(base64)) return null;
             byte[] bytes = Convert.FromBase64String(base64);
             using (var ms = new MemoryStream(bytes)){
-                return Image.FromStream(ms);
+                using (var img = Image.FromStream(ms)){
+                    return new Bitmap(img);
+                }
             }
         }
+
         // BASE 64 FOLD / RFC 2426 - RFC 6350
         // =========================
         public static string FoldBase64(string base64, int foldLength = 75){
             if (string.IsNullOrEmpty(base64))
                 return string.Empty;
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             for (int i = 0; i < base64.Length; i += foldLength){
                 int len = Math.Min(foldLength, base64.Length - i);
-                string part = base64.Substring(i, len);
-                if (i == 0)
-                    sb.AppendLine(part);
-                else
-                    sb.AppendLine(" " + part);
-            }
-            if (sb.Length > 0){
-                int lastNewLine = sb.ToString().LastIndexOf('\n');
-                if (lastNewLine >= 0)
-                    sb.Length = lastNewLine;
+                if (i > 0)
+                {
+                    sb.Append("\r\n ");
+                }
+                sb.Append(base64, i, len);
             }
             return sb.ToString();
         }

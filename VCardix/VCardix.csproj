@@ -66,6 +66,7 @@
     <Reference Include="System" />
     <Reference Include="System.Management" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
@@ -135,7 +136,6 @@
     <None Include="vcardix_images\vcardix_ui\ts_material\ts_close.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_vcard_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_update_light.png" />
-    <None Include="vcardix_images\vcardix_ui\theme_light\tm_ts_wizard_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_theme_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_startup_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_sorting_mode_light.png" />
@@ -147,7 +147,6 @@
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_donate_mc_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_donate_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\tm_about_light.png" />
-    <None Include="vcardix_images\vcardix_ui\theme_light\ct_website_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\ct_update_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\ct_show_image_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_light\ct_select_image_light.png" />
@@ -162,7 +161,6 @@
     <None Include="vcardix_images\vcardix_ui\theme_light\ct_add_light.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_vcard_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_update_dark.png" />
-    <None Include="vcardix_images\vcardix_ui\theme_dark\tm_ts_wizard_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_theme_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_startup_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_sorting_mode_dark.png" />
@@ -174,7 +172,6 @@
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_donate_mc_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_donate_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\tm_about_dark.png" />
-    <None Include="vcardix_images\vcardix_ui\theme_dark\ct_website_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\ct_update_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\ct_show_image_dark.png" />
     <None Include="vcardix_images\vcardix_ui\theme_dark\ct_select_image_dark.png" />

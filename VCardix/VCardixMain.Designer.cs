@@ -107,7 +107,6 @@
             this.windowedToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fullScreenToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.checkForUpdateToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.tSWizardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.donateToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.MainToolTip = new System.Windows.Forms.ToolTip(this.components);
@@ -723,7 +722,6 @@
             this.vCardVersionToolStripMenuItem,
             this.sortingModeToolStripMenuItem,
             this.settingsToolStripMenuItem,
-            this.tSWizardToolStripMenuItem,
             this.donateToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.HeaderMenu.Location = new System.Drawing.Point(0, 0);
@@ -1034,16 +1032,6 @@
             this.checkForUpdateToolStripMenuItem.Text = "checkupdate";
             this.checkForUpdateToolStripMenuItem.Click += new System.EventHandler(this.CheckForUpdateToolStripMenuItem_Click);
             // 
-            // tSWizardToolStripMenuItem
-            // 
-            this.tSWizardToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.tSWizardToolStripMenuItem.Name = "tSWizardToolStripMenuItem";
-            this.tSWizardToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
-            | System.Windows.Forms.Keys.S)));
-            this.tSWizardToolStripMenuItem.Size = new System.Drawing.Size(68, 20);
-            this.tSWizardToolStripMenuItem.Text = "TSWizard";
-            this.tSWizardToolStripMenuItem.Click += new System.EventHandler(this.TSWizardToolStripMenuItem_Click);
-            // 
             // donateToolStripMenuItem
             // 
             this.donateToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1174,7 +1162,6 @@
         private System.Windows.Forms.ToolStripMenuItem themeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem languageToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem tSWizardToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem importFileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exportFileToolStripMenuItem;
