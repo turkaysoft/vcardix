@@ -82,4 +82,4 @@ VCardix provides a versatile environment for professional contact management:
 
 ## License
 
-This software is offered free of charge as part of the **Türkay Software solutions package** and is protected under the [**MIT License**](https://github.com/turkaysoft/vcardix?tab=MIT-1-ov-file).
+This software is offered free of charge as part of the **Türkaysoft solutions package** and is protected under the [**MIT License**](https://github.com/turkaysoft/vcardix?tab=MIT-1-ov-file).
