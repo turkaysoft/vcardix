@@ -42,16 +42,6 @@ You can support this project by making a donation to help ensure its sustainabil
 
 ---
 
-## Advanced Capabilities
-
-VCardix provides a versatile environment for professional contact management:
-
-* **Universal Format Support:** Seamlessly edit and manage **vCard, CSV, and JSON** contact files.
-* **Modern Algorithm:** High-speed data processing for handling large contact lists without lag.
-* **Cross-Architecture Support:** Native compatibility for both **x64** and **ARM64** processor architectures.
-
----
-
 ## Translation Support
 
 * **Translation Support:** Community-driven localization via the official [Translation Guide](https://github.com/turkaysoft/vcardix/discussions/1).
