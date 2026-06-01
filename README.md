@@ -19,9 +19,17 @@ You can support this project by making a donation to help ensure its sustainabil
 ## Key Features
 
 * **Privacy First:** No data ever leaves your computer. Your sensitive contact information is processed entirely locally.
+* **Universal vCard Standard Support:** Full compatibility with **vCard 4.0 (RFC 6350), vCard 3.0 (RFC 2426), and vCard 2.1** standards, ensuring seamless interoperability with all major contact management platforms.
+* **Intelligent Change Tracking:** A data change tracking system monitors all input fields and warns you about unsaved changes before closing — preventing accidental data loss.
+* **Autosave System:** When switching between contacts, memory data is automatically updated. The system also prompts for unsaved changes when closing the form, and an intelligent field comparison mechanism preserves unchanged fields to improve editing performance.
+* **E.164 Phone Number Normalization:** Phone numbers are automatically normalized to **E.164 international format**, and vCard 4.0 TEL URI formatting is generated automatically for maximum compatibility.
+* **Smart Email Distribution:** Automatic distribution system for email fields based on TYPE parameters, respecting **PREF, WORK, and INTERNET** labels for proper email categorization.
+* **MIME Type Detection:** Photo files are automatically identified using signature-based detection, recognizing **PNG, JPEG, GIF, BMP, and TIFF** formats without relying on file extensions.
+* **Improved CSV Compatibility:** CSV import and export has been re-engineered with enhanced compatibility based on the **Google Contacts CSV format** standard.
+* **Refined JSON Import:** The JSON import process has been improved and refined to produce cleaner and more accurate results from structured contact data.
 * **Pure Performance:** Developed exclusively in **C# and .NET Framework** with **zero external libraries** for a lightweight and fast experience.
 * **Modern UI:** Clean, intuitive interface compatible with Windows 11 design language, featuring Light, Dark, and System themes.
-* **Multilingual:** Fully supports 15+ languages including Arabic, Chinese, English, Turkish, and more.
+* **Multilingual:** It supports 15 different languages, primarily English. You can access the supported languages here: [Supported Languages](https://github.com/turkaysoft/vcardix/discussions/1)
 * **Portable:** No installation required. Simply extract the ZIP and manage your contacts anywhere.
 * **Truly Free:** High-end management features provided at no cost, with no hidden fees or paywalls.
 * **Built-in Update Mechanism:** It features a built-in smart update mechanism developed specifically by **Türkaysoft**.
