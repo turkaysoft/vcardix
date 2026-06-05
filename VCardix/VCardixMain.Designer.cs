@@ -35,7 +35,7 @@
             this.BtnDelete = new VCardix.TSCustomButton();
             this.BtnUpdate = new VCardix.TSCustomButton();
             this.ContactList = new VCardix.TSCustomListBox();
-            this.UIPanel = new System.Windows.Forms.Panel();
+            this.UIPanel = new VCardix.TSCustomPanel();
             this.BtnOpenAdressWindow = new VCardix.TSCustomButton();
             this.dateTimePickerBirthday = new VCardix.TSCustomDateTimePicker();
             this.ContactUserImage = new System.Windows.Forms.PictureBox();
@@ -244,6 +244,8 @@
             this.ContactList.Size = new System.Drawing.Size(281, 334);
             this.ContactList.TabIndex = 2;
             this.ContactList.SelectedIndexChanged += new System.EventHandler(this.ContactList_SelectedIndexChanged);
+            this.ContactList.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ContactList_KeyDown);
+            this.ContactList.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.ContactList_PreviewKeyDown);
             // 
             // UIPanel
             // 
@@ -251,6 +253,9 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.UIPanel.BackColor = System.Drawing.Color.White;
+            this.UIPanel.BorderColor = System.Drawing.Color.DodgerBlue;
+            this.UIPanel.BorderRadius = 5;
+            this.UIPanel.BorderSize = 0;
             this.UIPanel.Controls.Add(this.BtnOpenAdressWindow);
             this.UIPanel.Controls.Add(this.dateTimePickerBirthday);
             this.UIPanel.Controls.Add(this.ContactUserImage);
@@ -1174,7 +1179,7 @@
         private System.Windows.Forms.ToolStripMenuItem vcard30ToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem vcard40ToolStripMenuItem;
         internal System.Windows.Forms.Label lblSearch;
-        private System.Windows.Forms.Panel UIPanel;
+        private TSCustomPanel UIPanel;
         private System.Windows.Forms.ToolTip MainToolTip;
         private System.Windows.Forms.ToolStripMenuItem startupToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem windowedToolStripMenuItem;

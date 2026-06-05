@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 //
 using static VCardix.TSModules;
@@ -18,19 +17,19 @@ namespace VCardix{
                 if (Application.OpenForms["VCardixMain"] is VCardixMain transfer_main_form){
                     string address = transfer_main_form.textBoxAddress.Text;
                     if (!string.IsNullOrEmpty(address)){
-                        string[] parts = address.Split(new[] { "||" }, StringSplitOptions.None);
-                        if (parts.Length == 7){
-                            txtPOBox.Text = parts[0];
-                            txtApartment.Text = parts[1];
-                            txtStreet.Text = parts[2];
-                            txtCity.Text = parts[3];
-                            txtRegion.Text = parts[4];
-                            txtPostal.Text = parts[5];
-                            txtCountry.Text = parts[6];
-                        }
+                        // RFC 6350 6.3.1: ADR semicolon-separated: POBox;Extended;Street;City;Region;Postal;Country
+                        string[] parts = address.Split(new[] { ';' }, StringSplitOptions.None);
+                        // RFC 6350 7-part: POBox;Extended;Street;City;Region;Postal;Country
+                        if (parts.Length >= 1) txtPOBox.Text = parts[0];
+                        if (parts.Length >= 2) txtApartment.Text = parts[1];
+                        if (parts.Length >= 3) txtStreet.Text = parts[2];
+                        if (parts.Length >= 4) txtCity.Text = parts[3];
+                        if (parts.Length >= 5) txtRegion.Text = parts[4];
+                        if (parts.Length >= 6) txtPostal.Text = parts[5];
+                        if (parts.Length >= 7) txtCountry.Text = parts[6];
                     }
                 }
-            }catch (Exception){ }
+            }catch (Exception) { }
         }
         // DYNAMIC UI
         // ======================================================================================================
@@ -80,6 +79,7 @@ namespace VCardix{
         // BTN CONTROLS
         // ======================================================================================================
         private void BtnSave_Click(object sender, EventArgs e){
+            // RFC 6350 6.3.1: ADR structured: PO Box;Extended;Street;Locality;Region;Postal;Country
             string[] parts = {
                 txtPOBox.Text.Trim(),
                 txtApartment.Text.Trim(),
@@ -89,8 +89,12 @@ namespace VCardix{
                 txtPostal.Text.Trim(),
                 txtCountry.Text.Trim()
             };
-            if (!parts.All(string.IsNullOrEmpty)){
-                string fullAddress = string.Join("||", parts);
+            // Check if at least one field has content
+            bool hasAnyContent = false;
+            foreach (var p in parts) { if (!string.IsNullOrEmpty(p)) { hasAnyContent = true; break; } }
+            if (hasAnyContent){
+                // Store as RFC 6350 semicolon-separated: POBox;Extended;Street;City;Region;Postal;Country
+                string fullAddress = string.Join(";", parts);
                 if (Application.OpenForms["VCardixMain"] is VCardixMain transfer_main_form){
                     transfer_main_form.textBoxAddress.Text = fullAddress;
                     transfer_main_form.BtnOpenAdressWindow.Invalidate();

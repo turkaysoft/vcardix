@@ -17,7 +17,7 @@ namespace VCardix{
         }
         private void AsyncLoadImage(){
             if (VCardixMain.select_object is PrefixModule c){
-                TSImageHelper.SetPictureBoxImage(ImgPreview, c.PhotoImage ?? TSImageHelper.ImageFromBase64(c.PhotoBase64));
+                TSImageHelper.SetPictureBoxImage(ImgPreview, c.PhotoImage);
             }
         }
         // DYNAMIC UI

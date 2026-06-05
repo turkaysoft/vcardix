@@ -18,6 +18,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 // TS MODULES
@@ -68,6 +69,23 @@ namespace VCardix{
             turkishToolStripMenuItem.Click += LanguageToolStripMenuItem_Click;
             //
             SystemEvents.UserPreferenceChanged += (s, e) => TSUseSystemTheme();
+            // Set the flag to true when the user manually changes their birthdate
+            dateTimePickerBirthday.ValueChanged += (s, e) => { if (autoSaveEnabled) { birthdayUserChanged = true; OnDataChanged(); } };
+            // Set the flag to true when the user manually changes the address
+            textBoxAddress.TextChanged += (s, e) => { if (autoSaveEnabled) { addressUserChanged = true; OnDataChanged(); } };
+            // Monitor changes in all input fields (for dataChanged and autoSave)
+            textBoxFirstName.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxMiddleName.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxLastName.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxPhoneMobile.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxPhoneHome.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxPhoneWork.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxEmail1.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxEmail2.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxEmail3.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxOrganization.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxWebsite.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
+            textBoxNote.TextChanged += (s, e) => { if (autoSaveEnabled) OnDataChanged(); };
         }
         // GLOBAL VARIABLES
         // ======================================================================================================
@@ -79,6 +97,16 @@ namespace VCardix{
         private int startup_status, themeSystem;
         private readonly int i_upload_size = 100;
         bool save_status = true;
+        // Checks whether the data has changed (true = saved/exported)
+        private bool dataChanged = false;
+        // Auto-save mode: automatically updates when the selected person's field changes
+        private bool autoSaveEnabled = true;
+        // The ID of the last selected person (to track field changes)
+        private Guid? lastSelectedContactId = null;
+        // A flag that tracks whether the user has manually changed their date of birth
+        private bool birthdayUserChanged = false;
+        // A flag that tracks whether the user has manually changed the address
+        private bool addressUserChanged = false;
         // ======================================================================================================
         // COLOR MODES
         static readonly List<Color> header_colors = new List<Color>() { Color.Transparent, Color.Transparent, Color.Transparent };
@@ -174,7 +202,7 @@ namespace VCardix{
         // LOAD
         // ====================================================================================================== 
         private void VCardix_Load(object sender, EventArgs e){
-            Text = TS_VersionEngine.TS_SofwareVersion(0);
+            Text = TS_VersionEngine.TS_SoftwareVersion(0);
             HeaderMenu.Cursor = Cursors.Hand;
             CXImageMenu.Cursor = Cursors.Hand;
             RunSoftwareEngine();
@@ -190,20 +218,114 @@ namespace VCardix{
                 FirstName = textBoxFirstName.Text.Trim(),
                 MiddleName = textBoxMiddleName.Text.Trim(),
                 LastName = textBoxLastName.Text.Trim(),
-                Birthday = dateTimePickerBirthday.Checked ? (DateTime?)dateTimePickerBirthday.Value.Date : null,
+                // Save the birth date only if the user has manually changed it
+                Birthday = (dateTimePickerBirthday.Checked && birthdayUserChanged) ? (DateTime?)dateTimePickerBirthday.Value.Date : null,
                 PhoneMobile = textBoxPhoneMobile.Text.Trim(),
                 PhoneHome = textBoxPhoneHome.Text.Trim(),
                 PhoneWork = textBoxPhoneWork.Text.Trim(),
                 Email1 = textBoxEmail1.Text.Trim(),
                 Email2 = textBoxEmail2.Text.Trim(),
                 Email3 = textBoxEmail3.Text.Trim(),
-                Address = textBoxAddress.Text.Trim(),
+                // Save the address only if the user has manually changed it
+                Address = addressUserChanged ? textBoxAddress.Text.Trim() : (selectedContact?.Address ?? ""),
                 Organization = textBoxOrganization.Text.Trim(),
                 Website = textBoxWebsite.Text.Trim(),
                 Note = textBoxNote.Text.Trim(),
                 PhotoBase64 = selectedContact?.PhotoBase64
             };
             return contact;
+        }
+        // DATA CHANGE MONITORING
+        // ======================================================================================================
+        // Called whenever any input field changes
+        private void OnDataChanged(){
+            dataChanged = true;
+            save_status = false;
+        }
+        // Clear data change flags (after import/export)
+        private void ClearDataChangedFlags(){
+            dataChanged = false;
+            save_status = true;
+        }
+        // AUTO SAVE
+        // ======================================================================================================
+        // Automatically update if the selected person's fields have changed
+        private void AutoSaveCurrentContact(){
+            if (!autoSaveEnabled) return;
+            if (!dataChanged) return;
+            if (!(ContactList.SelectedItem is PrefixModule selected)) return;
+            if (lastSelectedContactId == null || lastSelectedContactId != selected.Id) return;
+            // Check whether one of the fields has been changed
+            var current = GetContactFromInputs();
+            bool hasChanges = false;
+            // hasChanges = if the current value differs from the value in the UI
+            // IMPORTANT: The birthdayUserChanged and addressUserChanged flags are also taken into account
+            // because GetContactFromInputs may return null or a default value if the user hasn't made any changes
+            if (current.FirstName != selected.FirstName) hasChanges = true;
+            else if (current.MiddleName != selected.MiddleName) hasChanges = true;
+            else if (current.LastName != selected.LastName) hasChanges = true;
+            else if (current.PhoneMobile != selected.PhoneMobile) hasChanges = true;
+            else if (current.PhoneHome != selected.PhoneHome) hasChanges = true;
+            else if (current.PhoneWork != selected.PhoneWork) hasChanges = true;
+            else if (current.Email1 != selected.Email1) hasChanges = true;
+            else if (current.Email2 != selected.Email2) hasChanges = true;
+            else if (current.Email3 != selected.Email3) hasChanges = true;
+            else if (current.Organization != selected.Organization) hasChanges = true;
+            else if (current.Website != selected.Website) hasChanges = true;
+            else if (current.Note != selected.Note) hasChanges = true;
+            // Birthday: only if the user has actually changed it or if the current value is null or different
+            else if (birthdayUserChanged && current.Birthday != selected.Birthday) hasChanges = true;
+            // Address: only if the user has actually changed it or if the current value is different
+            else if (addressUserChanged && current.Address != selected.Address) hasChanges = true;
+            if (hasChanges){
+                autoSaveEnabled = false; // Prevent an infinite loop
+                // In AutoSave, update only the fields that have changed; preserve the others
+                // First, preserve the current values of the selected items; update only the fields that have changed in the UI
+                var updated = new PrefixModule{
+                    Id = selected.Id,
+                    FirstName = current.FirstName,
+                    MiddleName = current.MiddleName,
+                    LastName = current.LastName,
+                    Birthday = birthdayUserChanged ? current.Birthday : selected.Birthday,
+                    PhoneMobile = current.PhoneMobile,
+                    PhoneHome = current.PhoneHome,
+                    PhoneWork = current.PhoneWork,
+                    Email1 = current.Email1,
+                    Email2 = current.Email2,
+                    Email3 = current.Email3,
+                    Address = addressUserChanged ? current.Address : selected.Address,
+                    Organization = current.Organization,
+                    Website = current.Website,
+                    Note = current.Note,
+                    PhotoBase64 = selected.PhotoBase64
+                };
+                VCardManager.UpdateContact(selected.Id, updated);
+                autoSaveEnabled = true;
+                dataChanged = false;
+            }
+        }
+        // ADD FUNCTIONALITY TO SWITCH TO ANOTHER USER USING THE CONTACT LIST TAB KEY
+        // ====================================================================================================== 
+        private void ContactList_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e){
+            if (e.KeyCode == Keys.Tab){
+                e.IsInputKey = true;
+            }
+        }
+        private void ContactList_KeyDown(object sender, KeyEventArgs e){
+            if (e.KeyCode == Keys.Tab){
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                if (ContactList.Items.Count == 0) return;
+                int current = ContactList.SelectedIndex;
+                int next;
+                if (current == -1)
+                    next = 0;
+                else
+                    next = current + 1;
+                if (next >= ContactList.Items.Count)
+                    next = 0;
+                ContactList.SelectedIndex = next;
+            }
         }
         // REFRESH CONTACT LIST
         // ====================================================================================================== 
@@ -223,12 +345,19 @@ namespace VCardix{
         private void CleanUI(){
             textBoxSearch.Text = string.Empty;
             //
+            autoSaveEnabled = false; // Prevent events from being triggered during UI cleanup
+            //
             textBoxFirstName.Text = string.Empty;
             textBoxMiddleName.Text = string.Empty;
             textBoxLastName.Text = string.Empty;
             //
             dateTimePickerBirthday.Value = DateTime.Now;
             dateTimePickerBirthday.Checked = false;
+            // Reset flags (for CleanUI during new registration or post-registration cleanup)
+            birthdayUserChanged = false;
+            addressUserChanged = false;
+            dataChanged = false;
+            lastSelectedContactId = null;
             //
             textBoxPhoneMobile.Text = string.Empty;
             textBoxPhoneHome.Text = string.Empty;
@@ -244,13 +373,19 @@ namespace VCardix{
             textBoxNote.Text = string.Empty;
             //
             TSImageHelper.SetPictureBoxImage(ContactUserImage, null);
+            //
+            autoSaveEnabled = true;
         }
-        // CONTACT PERSON CHANGE
-        // ====================================================================================================== 
         private void ContactList_SelectedIndexChanged(object sender, EventArgs e){
+            // First, automatically save any changes made to the previously selected item
+            AutoSaveCurrentContact();
             if (ContactList.SelectedItem is PrefixModule c){
                 //
                 select_object = ContactList.SelectedItem;
+                // Save the ID of the last selected person
+                lastSelectedContactId = c.Id;
+                //
+                autoSaveEnabled = false; // Temporarily disable auto-save while loading data
                 //
                 textBoxFirstName.Text = c.FirstName;
                 textBoxMiddleName.Text = c.MiddleName;
@@ -263,6 +398,9 @@ namespace VCardix{
                     dateTimePickerBirthday.Value = DateTime.Now;
                     dateTimePickerBirthday.Checked = false;
                 }
+                // Reset the flags when the current user is loaded (the user hasn't manually changed them yet)
+                birthdayUserChanged = false;
+                addressUserChanged = false;
                 //
                 textBoxPhoneMobile.Text = c.PhoneMobile;
                 textBoxPhoneHome.Text = c.PhoneHome;
@@ -277,8 +415,12 @@ namespace VCardix{
                 textBoxWebsite.Text = c.Website;
                 textBoxNote.Text = c.Note;
                 //
-                TSImageHelper.SetPictureBoxImage(ContactUserImage, c.PhotoImage ?? TSImageHelper.ImageFromBase64(c.PhotoBase64));
+                TSImageHelper.SetPictureBoxImage(ContactUserImage, c.PhotoImage);
+                //
+                dataChanged = false;
+                autoSaveEnabled = true; // Re-enable autoSave
             }else{
+                lastSelectedContactId = null;
                 TSImageHelper.SetPictureBoxImage(ContactUserImage, null);
             }
         }
@@ -291,6 +433,7 @@ namespace VCardix{
                 RefreshList();
                 CleanUI();
                 save_status = false;
+                dataChanged = false;
                 TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_new_person_add_success"));
             }else{
                 TS_MessageBoxEngine.TS_MessageBox(this, 2, software_lang.TSReadLangs("VCardixUI", "vcui_new_person_add_warning"));
@@ -307,6 +450,7 @@ namespace VCardix{
                         RefreshList();
                         CleanUI();
                         save_status = false;
+                        dataChanged = false;
                         TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_update_person_success"));
                     }else{
                         TS_MessageBoxEngine.TS_MessageBox(this, 2, software_lang.TSReadLangs("VCardixUI", "vcui_person_not_found"));
@@ -328,6 +472,7 @@ namespace VCardix{
                         RefreshList();
                         CleanUI();
                         save_status = false;
+                        dataChanged = false;
                         TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_delete_person_success"));
                     }catch (Exception ex){
                         TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_delete_failed"), "\n\n", ex.Message));
@@ -454,6 +599,7 @@ namespace VCardix{
                     TSImageHelper.SetPictureBoxImage(ContactUserImage, selected.PhotoImage);
                     VCardManager.UpdateContact(selected.Id, selected);
                     save_status = false;
+                    dataChanged = false;
                     if (!imageMode)
                         TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_image_import_success"));
                     else
@@ -589,30 +735,64 @@ namespace VCardix{
                     }
                 }
                 if (ext == ".vcf" || ext == ".csv" || ext == ".json"){
+                    bool mergeMode = false;
                     if (ContactList.Items.Count > 0){
-                        var import_warning = TS_MessageBoxEngine.TS_MessageBox(this, 6, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_import_warning"), "\n\n"));
-                        if (import_warning != DialogResult.Yes){ return; }
+                        var import_warning = TS_MessageBoxEngine.TS_MessageBox(this, 10, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_import_warning_merge"), "\n\n", "\n\n", "\n\n"));
+                        if (import_warning == DialogResult.Cancel){ return; }
+                        if (import_warning == DialogResult.No){
+                            mergeMode = true;
+                        }
                     }
                     LoadSaveTitle(0);
                     if (ext == ".vcf"){
-                        await Task.Run(() => VCardManager.LoadVcf(drop_file));
-                        VCardVersionChanger(VCardManager.CurrentVersion);
+                        int skippedCount = 0;
+                        if (mergeMode){
+                            skippedCount = await Task.Run(() => VCardManager.MergeLoadVcf(drop_file));
+                        }else{
+                            await Task.Run(() => VCardManager.LoadVcf(drop_file));
+                            VCardVersionChanger(VCardManager.CurrentVersion);
+                        }
+                        if (!mergeMode) VCardVersionChanger(VCardManager.CurrentVersion);
                         RefreshList();
                         LoadSaveTitle(2);
-                        TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_vcard_import_success"));
+                        string msgKey = mergeMode ? "vcui_vcard_merge_success" : "vcui_vcard_import_success";
+                        string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                        if (mergeMode && skippedCount > 0)
+                            msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                        TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
                     }else if (ext == ".csv"){
-                        await Task.Run(() => VCardManager.LoadCsv(drop_file));
+                        int skippedCount = 0;
+                        if (mergeMode){
+                            skippedCount = await Task.Run(() => VCardManager.MergeLoadCsv(drop_file));
+                        }else{
+                            await Task.Run(() => VCardManager.LoadCsv(drop_file));
+                        }
                         RefreshList();
                         LoadSaveTitle(2);
-                        TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_csv_import_success"));
+                        string msgKey = mergeMode ? "vcui_csv_merge_success" : "vcui_csv_import_success";
+                        string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                        if (mergeMode && skippedCount > 0)
+                            msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                        TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
                     }else if (ext == ".json"){
-                        await Task.Run(() => VCardManager.LoadJson(drop_file));
-                        VCardVersionChanger(VCardManager.CurrentVersion);
+                        int skippedCount = 0;
+                        if (mergeMode){
+                            skippedCount = await Task.Run(() => VCardManager.MergeLoadJson(drop_file));
+                        }else{
+                            await Task.Run(() => VCardManager.LoadJson(drop_file));
+                            VCardVersionChanger(VCardManager.CurrentVersion);
+                        }
+                        if (!mergeMode) VCardVersionChanger(VCardManager.CurrentVersion);
                         RefreshList();
                         LoadSaveTitle(2);
-                        TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_json_import_success"));
+                        string msgKey = mergeMode ? "vcui_json_merge_success" : "vcui_json_import_success";
+                        string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                        if (mergeMode && skippedCount > 0)
+                            msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                        TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
                     }
-                    //save_status = false;
+                    save_status = true;
+                    dataChanged = false;
                     return;
                 }
                 TS_MessageBoxEngine.TS_MessageBox(this, 2, software_lang.TSReadLangs("VCardixUI", "vcui_dad_filter"));
@@ -632,25 +812,67 @@ namespace VCardix{
                 if (ofg.ShowDialog() == DialogResult.OK){
                     try{
                         string ext = Path.GetExtension(ofg.FileName).ToLower();
-                        LoadSaveTitle(0);
-                        if (ext == ".vcf"){
-                            await Task.Run(() => VCardManager.LoadVcf(ofg.FileName));
-                            VCardVersionChanger(VCardManager.CurrentVersion);
-                            RefreshList();
-                            LoadSaveTitle(2);
-                            TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_vcard_import_success"));
-                        }else if (ext == ".csv"){
-                            await Task.Run(() => VCardManager.LoadCsv(ofg.FileName));
-                            RefreshList();
-                            LoadSaveTitle(2);
-                            TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_csv_import_success"));
-                        }else if (ext == ".json"){
-                            await Task.Run(() => VCardManager.LoadJson(ofg.FileName));
-                            RefreshList();
-                            LoadSaveTitle(2);
-                            TS_MessageBoxEngine.TS_MessageBox(this, 1, software_lang.TSReadLangs("VCardixUI", "vcui_json_import_success"));
+                        bool mergeMode = false;
+                        if (ContactList.Items.Count > 0){
+                            var import_warning = TS_MessageBoxEngine.TS_MessageBox(this, 10, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_import_warning_merge"), "\n\n", "\n\n", "\n\n"));
+                            if (import_warning == DialogResult.Cancel){ return; }
+                            if (import_warning == DialogResult.No){
+                                mergeMode = true;
+                            }
                         }
-                        //save_status = false;
+                                                LoadSaveTitle(0);
+                        if (ext == ".vcf"){
+                            int skippedCount = 0;
+                            if (mergeMode){
+                                skippedCount = await Task.Run(() => VCardManager.MergeLoadVcf(ofg.FileName));
+                            }else{
+                                await Task.Run(() => VCardManager.LoadVcf(ofg.FileName));
+                                VCardVersionChanger(VCardManager.CurrentVersion);
+                            }
+                            if (!mergeMode) VCardVersionChanger(VCardManager.CurrentVersion);
+                            RefreshList();
+                            ClearDataChangedFlags();
+                            LoadSaveTitle(2);
+                            string msgKey = mergeMode ? "vcui_vcard_merge_success" : "vcui_vcard_import_success";
+                            string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                            if (mergeMode && skippedCount > 0)
+                                msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                            TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
+                        }else if (ext == ".csv"){
+                            int skippedCount = 0;
+                            if (mergeMode){
+                                skippedCount = await Task.Run(() => VCardManager.MergeLoadCsv(ofg.FileName));
+                            }else{
+                                await Task.Run(() => VCardManager.LoadCsv(ofg.FileName));
+                            }
+                            RefreshList();
+                            ClearDataChangedFlags();
+                            LoadSaveTitle(2);
+                            string msgKey = mergeMode ? "vcui_csv_merge_success" : "vcui_csv_import_success";
+                            string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                            if (mergeMode && skippedCount > 0)
+                                msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                            TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
+                        }else if (ext == ".json"){
+                            int skippedCount = 0;
+                            if (mergeMode){
+                                skippedCount = await Task.Run(() => VCardManager.MergeLoadJson(ofg.FileName));
+                            }else{
+                                await Task.Run(() => VCardManager.LoadJson(ofg.FileName));
+                                VCardVersionChanger(VCardManager.CurrentVersion);
+                            }
+                            if (!mergeMode) VCardVersionChanger(VCardManager.CurrentVersion);
+                            RefreshList();
+                            ClearDataChangedFlags();
+                            LoadSaveTitle(2);
+                            string msgKey = mergeMode ? "vcui_json_merge_success" : "vcui_json_import_success";
+                            string msg = software_lang.TSReadLangs("VCardixUI", msgKey);
+                            if (mergeMode && skippedCount > 0)
+                                msg = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_merge_skipped"), msg, skippedCount);
+                            TS_MessageBoxEngine.TS_MessageBox(this, 1, msg);
+                        }
+                        save_status = true;
+                        dataChanged = false;
                     }catch (Exception ex){
                         TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_select_failed"), "\n\n", ex.Message));
                     }
@@ -674,46 +896,48 @@ namespace VCardix{
                 dlg.OverwritePrompt = true;
                 dlg.AddExtension = true;
                 dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                if (dlg.ShowDialog() == DialogResult.OK){
-                    try{
-                        string ext = Path.GetExtension(dlg.FileName).ToLower();
-                        LoadSaveTitle(1);
-                        if (ext == ".vcf"){
-                            if (VCardManager.CurrentVersion == VCardVersion.V40){
-                                DialogResult warning_v40 = TS_MessageBoxEngine.TS_MessageBox(this, 6, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_export_40_warning"), "\n\n"));
-                                if (warning_v40 == DialogResult.Yes){
-                                    VCardManager.CurrentVersion = VCardVersionChanger();
-                                }else{
-                                    return;
-                                }
-                            }else{
+                if (dlg.ShowDialog() != DialogResult.OK){
+                    return;
+                }
+                try{
+                    string ext = Path.GetExtension(dlg.FileName).ToLower();
+                    LoadSaveTitle(1);
+                    if (ext == ".vcf"){
+                        if (VCardManager.CurrentVersion == VCardVersion.V40){
+                            DialogResult warning_v40 = TS_MessageBoxEngine.TS_MessageBox(this, 6, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_export_40_warning"), "\n\n"));
+                            if (warning_v40 == DialogResult.Yes){
                                 VCardManager.CurrentVersion = VCardVersionChanger();
+                            }else{
+                                return;
                             }
-                            await Task.Run(() => VCardManager.SaveVcf(dlg.FileName));
-                            LoadSaveTitle(2);
-                            DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_vcard_export_success"), dlg.FileName, "\n\n"));
-                            if (save_aof_warning == DialogResult.Yes){
-                                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
-                            }
-                        }else if (ext == ".csv"){
-                            await Task.Run(() => VCardManager.SaveCsv(dlg.FileName));
-                            LoadSaveTitle(2);
-                            DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_csv_export_success"), dlg.FileName, "\n\n"));
-                            if (save_aof_warning == DialogResult.Yes){
-                                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
-                            }
-                        }else if (ext == ".json"){
-                            await Task.Run(() => VCardManager.SaveJson(dlg.FileName));
-                            LoadSaveTitle(2);
-                            DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_json_export_success"), dlg.FileName, "\n\n"));
-                            if (save_aof_warning == DialogResult.Yes){
-                                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
-                            }
+                        }else{
+                            VCardManager.CurrentVersion = VCardVersionChanger();
                         }
-                        save_status = true;
-                    }catch (Exception ex){
-                        TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_export_failed"), "\n\n", ex.Message));
+                        await Task.Run(() => VCardManager.SaveVcf(dlg.FileName));
+                        LoadSaveTitle(2);
+                        DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_vcard_export_success"), dlg.FileName, "\n\n"));
+                        if (save_aof_warning == DialogResult.Yes){
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
+                        }
+                    }else if (ext == ".csv"){
+                        await Task.Run(() => VCardManager.SaveCsv(dlg.FileName));
+                        LoadSaveTitle(2);
+                        DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_csv_export_success"), dlg.FileName, "\n\n"));
+                        if (save_aof_warning == DialogResult.Yes){
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
+                        }
+                    }else if (ext == ".json"){
+                        await Task.Run(() => VCardManager.SaveJson(dlg.FileName));
+                        LoadSaveTitle(2);
+                        DialogResult save_aof_warning = TS_MessageBoxEngine.TS_MessageBox(this, 5, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_json_export_success"), dlg.FileName, "\n\n"));
+                        if (save_aof_warning == DialogResult.Yes){
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dlg.FileName}\"") { UseShellExecute = true });
+                        }
                     }
+                    save_status = true;
+                    dataChanged = false;
+                }catch (Exception ex){
+                    TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_export_failed"), "\n\n", ex.Message));
                 }
             }
         }
@@ -739,7 +963,7 @@ namespace VCardix{
         // ====================================================================================================== 
         private void LoadSaveTitle(int mode){
             TSGetLangs software_lang = new TSGetLangs(lang_path);
-            string main_title = TS_VersionEngine.TS_SofwareVersion(0);
+            string main_title = TS_VersionEngine.TS_SoftwareVersion(0);
             if (mode == 0){
                 Text = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_load"), main_title);
             }else if (mode == 1){
@@ -1136,7 +1360,7 @@ namespace VCardix{
                     handler.UseProxy = false;
                     using (HttpClient httpClient = new HttpClient(handler)){
                         httpClient.Timeout = TimeSpan.FromSeconds(15);
-                        httpClient.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue{ NoCache = true, NoStore = true, MustRevalidate = true };
+                        httpClient.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue{ NoCache = true, NoStore = true, MustRevalidate = true };
                         httpClient.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
                         string versionUrl = TS_LinkSystem.github_link_lv;
                         versionUrl += (versionUrl.Contains("?") ? "&" : "?") + "_ts=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -1243,26 +1467,35 @@ namespace VCardix{
         // EXIT
         // ======================================================================================================
         private void VCardix_FormClosing(object sender, FormClosingEventArgs e){
+            // First, automatically save any unsaved changes in the selected user
+            AutoSaveCurrentContact();
             if (!save_status){
                 TSGetLangs software_lang = new TSGetLangs(lang_path);
                 var import_warning = TS_MessageBoxEngine.TS_MessageBox(this, 10, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_import_warning_exit"), "\n\n"));
                 if (import_warning == DialogResult.Yes){
                     try{
+                        // First, check if there are any unsaved changes in the selected user and force a save
+                        if (dataChanged && ContactList.SelectedItem is PrefixModule selected){
+                            autoSaveEnabled = false;
+                            var current = GetContactFromInputs();
+                            current.Id = selected.Id;
+                            current.PhotoBase64 = selected.PhotoBase64;
+                            VCardManager.UpdateContact(selected.Id, current);
+                            autoSaveEnabled = true;
+                            dataChanged = false;
+                        }
                         SaveContactsToFile();
-                        Application.Exit();
                     }catch (Exception ex){
                         TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_export_failed"), "\n\n", ex.Message));
                         e.Cancel = true;
                         return;
                     }
                 }else if (import_warning == DialogResult.No){
-                    Application.ExitThread();
+                    // Close without saving, allow
                 }else if (import_warning == DialogResult.Cancel){
                     e.Cancel = true;
                     return;
                 }
-            }else{
-                Application.Exit();
             }
         }
     }
