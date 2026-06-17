@@ -1156,9 +1156,11 @@ namespace VCardix{
                 {
                     header += ",\"PhotoBase64\"";
                 }
-                sw.WriteLine(header);
-                foreach (var c in ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")))
+                sw.Write(header);
+                var contacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")).ToList();
+                for (int i = 0; i < contacts.Count; i++)
                 {
+                    var c = contacts[i];
                     var addressParts = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
                     string street = addressParts.Length > 2 ? addressParts[2] : "";
                     string city = addressParts.Length > 3 ? addressParts[3] : "";
@@ -1167,11 +1169,16 @@ namespace VCardix{
                     string country = addressParts.Length > 6 ? addressParts[6] : "";
                     var phoneTypes = new[] { "Mobile", "Home", "Work" };
                     var phoneValues = new[] { c.PhoneMobile, c.PhoneHome, c.PhoneWork };
-                    var emailTypes = new[] { "Work", "Other", "Other" };
-                    var emailValues = new[] { c.Email1, c.Email2, c.Email3 };
+
+                    string email1Type = "Work";
+                    string email1Value = c.Email1 ?? "";
+                    string email2Type = "Other";
+                    string email2Value = c.Email2 ?? "";
+                    string email3Type = "Other";
+                    string email3Value = c.Email3 ?? "";
+
                     string addressType = "Home";
-                    var row = new List<string>
-                    {
+                    var row = new List<string>{
                         EscapeCsv(c.FirstName), EscapeCsv(c.MiddleName), EscapeCsv(c.LastName),
                         EscapeCsv(c.Organization),
                         c.Birthday?.ToString("yyyy-MM-dd") ?? "",
@@ -1184,11 +1191,11 @@ namespace VCardix{
                         // Phone 3
                         EscapeCsv(phoneTypes[2]), EscapeCsv(phoneValues[2]),
                         // E-Mail 1
-                        EscapeCsv(emailTypes[0]), EscapeCsv(emailValues[0]),
+                        EscapeCsv(email1Type), EscapeCsv(email1Value),
                         // E-Mail 2
-                        EscapeCsv(emailTypes[1]), EscapeCsv(emailValues[1]),
+                        EscapeCsv(email2Type), EscapeCsv(email2Value),
                         // E-Mail 3
-                        EscapeCsv(emailTypes[2]), EscapeCsv(emailValues[2]),
+                        EscapeCsv(email3Type), EscapeCsv(email3Value),
                         // Adress
                         EscapeCsv(addressType), EscapeCsv(street), EscapeCsv(city), EscapeCsv(postal), EscapeCsv(region), EscapeCsv(country)
                     };
@@ -1196,26 +1203,26 @@ namespace VCardix{
                     {
                         row.Add(EscapeCsv(c.PhotoBase64));
                     }
-                    sw.WriteLine(string.Join(",", row));
+                    if (i > 0) sw.WriteLine();
+                    sw.Write(string.Join(",", row));
                 }
             }
         }
-        // ESCAPE CSV
+        // ESCAPE CSV & PARSE CSV LINE
         // ======================================================================================================
         private string EscapeCsv(string s){
-            if (string.IsNullOrEmpty(s)) return "";
-            if (s.Contains(",") || s.Contains("\"") || s.Contains("\n")){
+            if (string.IsNullOrEmpty(s))
+                return "";
+            if (s.Contains(",") || s.Contains("\"") || s.Contains("\n") || s.Contains("\r")){
                 s = s.Replace("\"", "\"\"");
                 return $"\"{s}\"";
             }
             return s;
         }
-        // ADVANCED PARSE CVS LINE
-        // ======================================================================================================
         private string[] ParseCsvLine(string line){
             var values = new List<string>();
-            int i = 0;
             var sb = new StringBuilder();
+            int i = 0;
             bool inQuotes = false;
             while (i < line.Length){
                 char c = line[i];
