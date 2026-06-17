@@ -1146,7 +1146,8 @@ namespace VCardix{
         }
         public void SaveCsv(string filePath, bool includePhoto = false)
         {
-            using (var sw = new StreamWriter(filePath, false, Encoding.UTF8))
+            string validatedExportPath = GetValidatedExportPath(filePath);
+            using (var sw = new StreamWriter(validatedExportPath, false, Encoding.UTF8))
             {
                 string header = "\"First Name\",\"Middle Name\",\"Last Name\",\"Organization Name\",\"Birthday\",\"Notes\",\"Website 1 - Value\"," +
                                 "\"Phone 1 - Type\",\"Phone 1 - Value\",\"Phone 2 - Type\",\"Phone 2 - Value\",\"Phone 3 - Type\",\"Phone 3 - Value\"," +
@@ -1205,6 +1206,28 @@ namespace VCardix{
                     sw.Write(string.Join(",", row));
                 }
             }
+        }
+        private string GetSecureExportDirectory(){
+            string baseDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VCardix",
+                "Exports");
+            Directory.CreateDirectory(baseDir);
+            return Path.GetFullPath(baseDir);
+        }
+        private string GetValidatedExportPath(string requestedPath){
+            string safeBaseDir = GetSecureExportDirectory();
+            string fileName = Path.GetFileName(requestedPath);
+            if (string.IsNullOrWhiteSpace(fileName))
+                throw new ArgumentException("Invalid export file name.", nameof(requestedPath));
+
+            string combinedPath = Path.Combine(safeBaseDir, fileName);
+            string fullPath = Path.GetFullPath(combinedPath);
+            if (!fullPath.StartsWith(safeBaseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(fullPath, safeBaseDir, StringComparison.OrdinalIgnoreCase)){
+                throw new UnauthorizedAccessException("Export path must be within the secure export directory.");
+            }
+            return fullPath;
         }
         // ESCAPE CSV & PARSE CSV LINE
         // ======================================================================================================
