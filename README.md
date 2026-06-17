@@ -68,6 +68,30 @@ You can support this project by making a donation to help ensure its sustainabil
 
 ---
 
+## Shortcut Keys
+
+| Shortcut | Action |
+|--|--|
+| `F1` | Light Theme |
+| `F2` | Dark Theme |
+| `F3` | System Theme |
+| `F4` | Starting With: Windowed |
+| `F5` | Starting With: Full Screen |
+| `F11` | Check Updates |
+| `F12` | About |
+| `CTRL + Alt + D` | Donate Page |
+| `CTRL + N` | Import File |
+| `CTRL + S` | Export File |
+| `CTRL + 2` | vCard 2.1 |
+| `CTRL + 3` | vCard 3.0 |
+| `CTRL + 4` | vCard 4.0 |
+| `CTRL + Shift + 1` | Sorting: Full Name |
+| `CTRL + Shift + 2` | Sorting: First Name |
+| `CTRL + Shift + 3` | Sorting: Last Name |
+| `CTRL + Shift + 4` | Sorting: Mobile Phone |
+
+---
+
 ## Security
 
 * **Zero Data Export Policy:** Your privacy is our priority; no data leaves your machine.
