@@ -1169,14 +1169,12 @@ namespace VCardix{
                     string country = addressParts.Length > 6 ? addressParts[6] : "";
                     var phoneTypes = new[] { "Mobile", "Home", "Work" };
                     var phoneValues = new[] { c.PhoneMobile, c.PhoneHome, c.PhoneWork };
-
                     string email1Type = "Work";
                     string email1Value = c.Email1 ?? "";
                     string email2Type = "Other";
                     string email2Value = c.Email2 ?? "";
                     string email3Type = "Other";
                     string email3Value = c.Email3 ?? "";
-
                     string addressType = "Home";
                     var row = new List<string>{
                         EscapeCsv(c.FirstName), EscapeCsv(c.MiddleName), EscapeCsv(c.LastName),
