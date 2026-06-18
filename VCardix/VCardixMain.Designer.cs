@@ -30,7 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             this.BackPanel = new System.Windows.Forms.Panel();
-            this.BottomInfoLabel = new System.Windows.Forms.Label();
+            this.BottomInfoLabel = new VCardix.TSCustomLabel();
             this.BtnAdd = new VCardix.TSCustomButton();
             this.BtnDelete = new VCardix.TSCustomButton();
             this.BtnUpdate = new VCardix.TSCustomButton();
@@ -143,13 +143,14 @@
             // 
             this.BottomInfoLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.BottomInfoLabel.BackColor = System.Drawing.Color.White;
+            this.BottomInfoLabel.BorderRadius = 5;
             this.BottomInfoLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold);
             this.BottomInfoLabel.ImeMode = System.Windows.Forms.ImeMode.NoControl;
             this.BottomInfoLabel.Location = new System.Drawing.Point(10, 535);
             this.BottomInfoLabel.Margin = new System.Windows.Forms.Padding(3);
             this.BottomInfoLabel.Name = "BottomInfoLabel";
-            this.BottomInfoLabel.Padding = new System.Windows.Forms.Padding(3, 0, 3, 0);
-            this.BottomInfoLabel.Size = new System.Drawing.Size(281, 30);
+            this.BottomInfoLabel.Padding = new System.Windows.Forms.Padding(5, 0, 5, 0);
+            this.BottomInfoLabel.Size = new System.Drawing.Size(281, 31);
             this.BottomInfoLabel.TabIndex = 6;
             this.BottomInfoLabel.Text = "N/A Contact";
             this.BottomInfoLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1041,7 +1042,7 @@
             // 
             this.donateToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.donateToolStripMenuItem.Name = "donateToolStripMenuItem";
-            this.donateToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
+            this.donateToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt) 
             | System.Windows.Forms.Keys.D)));
             this.donateToolStripMenuItem.Size = new System.Drawing.Size(57, 20);
             this.donateToolStripMenuItem.Text = "Donate";
@@ -1204,7 +1205,7 @@
         private TSCustomButton BtnDelete;
         public TSCustomButton BtnOpenAdressWindow;
         private System.Windows.Forms.ToolStripMenuItem systemThemeToolStripMenuItem;
-        internal System.Windows.Forms.Label BottomInfoLabel;
+        internal TSCustomLabel BottomInfoLabel;
         private System.Windows.Forms.ToolStripMenuItem donateToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem arabicToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem chineseToolStripMenuItem;

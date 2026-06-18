@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+// TS Modules
 using static VCardix.TSModules;
 
 namespace VCardix{
@@ -1144,23 +1145,18 @@ namespace VCardix{
             }
             return skippedCount;
         }
-        public void SaveCsv(string filePath, bool includePhoto = false)
-        {
-            string validatedExportPath = GetValidatedExportPath(filePath);
-            using (var sw = new StreamWriter(validatedExportPath, false, Encoding.UTF8))
-            {
+        public void SaveCsv(string filePath, bool includePhoto = false){
+            using (var sw = new StreamWriter(filePath, false, Encoding.UTF8)){
                 string header = "\"First Name\",\"Middle Name\",\"Last Name\",\"Organization Name\",\"Birthday\",\"Notes\",\"Website 1 - Value\"," +
                                 "\"Phone 1 - Type\",\"Phone 1 - Value\",\"Phone 2 - Type\",\"Phone 2 - Value\",\"Phone 3 - Type\",\"Phone 3 - Value\"," +
                                 "\"E-mail 1 - Type\",\"E-mail 1 - Value\",\"E-mail 2 - Type\",\"E-mail 2 - Value\",\"E-mail 3 - Type\",\"E-mail 3 - Value\"," +
                                 "\"Address 1 - Type\",\"Address 1 - Street\",\"Address 1 - City\",\"Address 1 - Postal Code\",\"Address 1 - Region\",\"Address 1 - Country\"";
-                if (includePhoto)
-                {
+                if (includePhoto){
                     header += ",\"PhotoBase64\"";
                 }
                 sw.Write(header);
                 var contacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")).ToList();
-                for (int i = 0; i < contacts.Count; i++)
-                {
+                for (int i = 0; i < contacts.Count; i++){
                     var c = contacts[i];
                     var addressParts = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
                     string street = addressParts.Length > 2 ? addressParts[2] : "";
@@ -1170,12 +1166,8 @@ namespace VCardix{
                     string country = addressParts.Length > 6 ? addressParts[6] : "";
                     var phoneTypes = new[] { "Mobile", "Home", "Work" };
                     var phoneValues = new[] { c.PhoneMobile, c.PhoneHome, c.PhoneWork };
-                    string email1Type = "Work";
-                    string email1Value = c.Email1 ?? "";
-                    string email2Type = "Other";
-                    string email2Value = c.Email2 ?? "";
-                    string email3Type = "Other";
-                    string email3Value = c.Email3 ?? "";
+                    var emailTypes = new[] { "Work", "Other", "Other" };
+                    var emailValues = new[] { c.Email1, c.Email2, c.Email3 };
                     string addressType = "Home";
                     var row = new List<string>{
                         EscapeCsv(c.FirstName), EscapeCsv(c.MiddleName), EscapeCsv(c.LastName),
@@ -1190,44 +1182,21 @@ namespace VCardix{
                         // Phone 3
                         EscapeCsv(phoneTypes[2]), EscapeCsv(phoneValues[2]),
                         // E-Mail 1
-                        EscapeCsv(email1Type), EscapeCsv(email1Value),
+                        EscapeCsv(emailTypes[0]), EscapeCsv(emailValues[0]),
                         // E-Mail 2
-                        EscapeCsv(email2Type), EscapeCsv(email2Value),
+                        EscapeCsv(emailTypes[1]), EscapeCsv(emailValues[1]),
                         // E-Mail 3
-                        EscapeCsv(email3Type), EscapeCsv(email3Value),
+                        EscapeCsv(emailTypes[2]), EscapeCsv(emailValues[2]),
                         // Adress
                         EscapeCsv(addressType), EscapeCsv(street), EscapeCsv(city), EscapeCsv(postal), EscapeCsv(region), EscapeCsv(country)
                     };
-                    if (includePhoto)
-                    {
+                    if (includePhoto){
                         row.Add(EscapeCsv(c.PhotoBase64));
                     }
                     if (i > 0) sw.WriteLine();
                     sw.Write(string.Join(",", row));
                 }
             }
-        }
-        private string GetSecureExportDirectory(){
-            string baseDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "VCardix",
-                "Exports");
-            Directory.CreateDirectory(baseDir);
-            return Path.GetFullPath(baseDir);
-        }
-        private string GetValidatedExportPath(string requestedPath){
-            string safeBaseDir = GetSecureExportDirectory();
-            string fileName = Path.GetFileName(requestedPath);
-            if (string.IsNullOrWhiteSpace(fileName))
-                throw new ArgumentException("Invalid export file name.", nameof(requestedPath));
-
-            string combinedPath = Path.Combine(safeBaseDir, fileName);
-            string fullPath = Path.GetFullPath(combinedPath);
-            if (!fullPath.StartsWith(safeBaseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(fullPath, safeBaseDir, StringComparison.OrdinalIgnoreCase)){
-                throw new UnauthorizedAccessException("Export path must be within the secure export directory.");
-            }
-            return fullPath;
         }
         // ESCAPE CSV & PARSE CSV LINE
         // ======================================================================================================
