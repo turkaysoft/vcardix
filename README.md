@@ -20,6 +20,7 @@ You can support this project by making a donation to help ensure its sustainabil
 
 * **Privacy First:** Your data stays on your machine; no information is transferred to external servers.
 * **Pure Performance:** Developed exclusively in **C# and .NET Framework** with no external libraries or dependencies.
+* **Portable:** No installation required. Just download it, extract all files from the ZIP, select the appropriate architecture, and run it.
 * **Universal vCard Standard Support:** Full compatibility with **vCard 4.0 (RFC 6350), vCard 3.0 (RFC 2426), and vCard 2.1** standards, ensuring seamless interoperability with all major contact management platforms.
 * **Intelligent Change Tracking:** A data change tracking system monitors all input fields and warns you about unsaved changes before closing — preventing accidental data loss.
 * **Autosave System:** When switching between contacts, memory data is automatically updated. The system also prompts for unsaved changes when closing the form, and an intelligent field comparison mechanism preserves unchanged fields to improve editing performance.
