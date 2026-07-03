@@ -236,6 +236,8 @@
             this.ContactList.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
             this.ContactList.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, System.Drawing.FontStyle.Bold);
             this.ContactList.FormattingEnabled = true;
+            this.ContactList.HorizontalExtent = 10;
+            this.ContactList.HorizontalScrollbar = true;
             this.ContactList.IntegralHeight = false;
             this.ContactList.ItemHeight = 22;
             this.ContactList.Location = new System.Drawing.Point(10, 67);

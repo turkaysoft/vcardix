@@ -30,10 +30,10 @@ namespace VCardix{
                 //
                 foreach (Control ui_controls in BackPanel.Controls){
                     if (ui_controls is Button ui_btn){
-                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "DynamicThemeActiveBtnBG");
-                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
-                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
-                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
+                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_BGColor2");
+                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
                         ui_btn.FlatAppearance.MouseOverBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColorHover");
                     }
                 }

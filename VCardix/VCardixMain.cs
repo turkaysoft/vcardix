@@ -205,6 +205,7 @@ namespace VCardix{
             Text = TS_VersionEngine.TS_SoftwareVersion(0);
             HeaderMenu.Cursor = Cursors.Hand;
             CXImageMenu.Cursor = Cursors.Hand;
+            // LOAD MODULE
             RunSoftwareEngine();
             //
             Task softwareUpdateCheck = Task.Run(() => Software_update_check(0));
@@ -333,6 +334,7 @@ namespace VCardix{
             CleanUI();
             ContactList.Items.Clear();
             ContactList.Items.AddRange(VCardManager.ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? string.Empty)).ToArray());
+            ContactList.UpdateHorizontalExtent();
             TSGetLangs software_lang = new TSGetLangs(lang_path);
             if (ContactList.Items.Count > 0){
                 BottomInfoLabel.Text = string.Format(software_lang.TSReadLangs("VCardixUI", "vcui_bottom_ready"), ContactList.Items.Count.ToString());
@@ -694,6 +696,7 @@ namespace VCardix{
                 }
             }
             ContactList.EndUpdate();
+            ContactList.UpdateHorizontalExtent();
         }
         private void UpdateSortringMenuChecks(ToolStripMenuItem selectedItem){
             sortingFullNameToolStripMenuItem.Checked = false;
@@ -1076,63 +1079,63 @@ namespace VCardix{
                     TSImageRenderer(cxRemoveImageToolStripMenuItem, Properties.Resources.ct_delete_image_dark, 0, ContentAlignment.MiddleRight);
                 }
                 // HEADER
-                header_colors[0] = TS_ThemeEngine.ColorMode(theme, "HeaderBGColorMain");
-                header_colors[1] = TS_ThemeEngine.ColorMode(theme, "HeaderFEColorMain");
-                header_colors[2] = TS_ThemeEngine.ColorMode(theme, "AccentColor");
+                header_colors[0] = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
+                header_colors[1] = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
+                header_colors[2] = TS_ThemeEngine.ColorMode(theme, "TSBT_AccentColor");
                 HeaderMenu.Renderer = new HeaderMenuColors();
                 CXImageMenu.Renderer = new HeaderMenuColors();
                 // TOOLTIP
-                MainToolTip.ForeColor = TS_ThemeEngine.ColorMode(theme, "HeaderFEColor");
-                MainToolTip.BackColor = TS_ThemeEngine.ColorMode(theme, "HeaderBGColor");
+                MainToolTip.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
+                MainToolTip.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
                 // HEADER MENU
                 // ===========================================
-                var bg = TS_ThemeEngine.ColorMode(theme, "HeaderBGColor");
-                var fg = TS_ThemeEngine.ColorMode(theme, "HeaderFEColor");
+                var bg = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
+                var fg = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                 HeaderMenu.ForeColor = fg;
                 HeaderMenu.BackColor = bg;
                 SetMenuStripColors(HeaderMenu, bg, fg);
                 SetContextMenuColors(CXImageMenu, bg, fg);
                 // UI
-                BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor2");
+                BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
                 //
-                lblSearch.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
+                lblSearch.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                 //
-                ContactList.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
-                ContactList.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
-                ContactList.SelectedBackColor = TS_ThemeEngine.ColorMode(theme, "AccentColor");
-                ContactList.SelectedForeColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
+                ContactList.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
+                ContactList.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
+                ContactList.SelectedBackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_AccentColor");
+                ContactList.SelectedForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
                 //
                 var combinedBtnsControls = BackPanel.Controls.Cast<Control>().Concat(UIPanel.Controls.Cast<Control>());
                 foreach (Control ui_controls in combinedBtnsControls){
                     if (ui_controls is Button ui_btn){
-                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(theme, "DynamicThemeActiveBtnBG");
-                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(theme, "AccentColor");
-                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(theme, "AccentColor");
-                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(theme, "AccentColor");
+                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
+                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_AccentColor");
                         ui_btn.FlatAppearance.MouseOverBackColor = TS_ThemeEngine.ColorMode(theme, "AccentColorHover");
                     }
                     if (ui_controls is TextBox ui_textbox){
-                        ui_textbox.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor2");
-                        ui_textbox.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
+                        ui_textbox.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
+                        ui_textbox.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                     }
                     if (ui_controls is Label ui_label){
-                        ui_label.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
+                        ui_label.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                     }
                 }
-                textBoxSearch.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
-                textBoxSearch.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
+                textBoxSearch.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
+                textBoxSearch.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                 //
-                BottomInfoLabel.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
+                BottomInfoLabel.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
                 //
-                UIPanel.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
+                UIPanel.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
                 //
-                dateTimePickerBirthday.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor2");
-                dateTimePickerBirthday.ButtonColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor");
-                dateTimePickerBirthday.ForeColor = TS_ThemeEngine.ColorMode(theme, "AccentColorText");
+                dateTimePickerBirthday.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
+                dateTimePickerBirthday.ButtonColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
+                dateTimePickerBirthday.ForeColor = TS_ThemeEngine.ColorMode(theme, "TSBT_LabelColor1");
                 dateTimePickerBirthday.BorderColor = TS_ThemeEngine.ColorMode(theme, "BorderColor");
                 dateTimePickerBirthday.FocusedBorderColor = TS_ThemeEngine.ColorMode(theme, "BorderColor");
                 //
-                ContactUserImage.BackColor = TS_ThemeEngine.ColorMode(theme, "UIBGColor2");
+                ContactUserImage.BackColor = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor");
                 //
                 Software_other_page_preloader();
             }catch (Exception){ }
@@ -1178,7 +1181,7 @@ namespace VCardix{
         private void Software_other_page_preloader(){
             OtherDynamicUI<VCardixAdressWindow>("vcardix_adress_window", f => f.Adress_window_preloader());
             OtherDynamicUI<VCardixImagePreview>("vcardix_image_preview", f => f.Image_preview_preloader());
-            OtherDynamicUI<VCardixAbout>("vcardix_about", f => f.About_preloader());
+            OtherDynamicUI<VCardixAbout>("vcardix_about", f => f.About_Preloader());
         }
         // LANG MODE
         // ======================================================================================================

@@ -41,20 +41,20 @@ namespace VCardix{
                 //
                 foreach (Control ui_controls in TLPBtn.Controls){
                     if (ui_controls is Button ui_btn){
-                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "DynamicThemeActiveBtnBG");
-                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
-                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
-                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColor");
+                        ui_btn.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_BGColor2");
+                        ui_btn.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.BorderColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
+                        ui_btn.FlatAppearance.MouseDownBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_AccentColor");
                         ui_btn.FlatAppearance.MouseOverBackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColorHover");
                     }
                 }
                 foreach (Control ui_controls in BackPanel.Controls){
                     if (ui_controls is TextBox ui_textbox){
-                        ui_textbox.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "UIBGColor2");
-                        ui_textbox.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColorText");
+                        ui_textbox.BackColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_BGColor");
+                        ui_textbox.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_LabelColor1");
                     }
                     if (ui_controls is Label ui_label){
-                        ui_label.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "AccentColorText");
+                        ui_label.ForeColor = TS_ThemeEngine.ColorMode(VCardixMain.theme, "TSBT_LabelColor1");
                     }
                 }
                 //
