@@ -1,4 +1,4 @@
-# VCardix - Advanced vCard, CSV and JSON Contact Manager Software
+# VCardix - vCard, CSV and JSON Contact Manager Software
 
 [![GitHub downloads](https://img.shields.io/github/downloads/turkaysoft/vcardix/total?style=flat&color=1a893c&label=Downloads)](https://github.com/turkaysoft/vcardix/releases)
 [![GitHub stars](https://img.shields.io/github/stars/turkaysoft/vcardix?style=flat&color=0062cc&label=Stars)](https://github.com/turkaysoft/vcardix/stargazers)
