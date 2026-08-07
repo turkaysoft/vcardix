@@ -662,10 +662,14 @@ namespace VCardix{
                             current.Organization = UnescapeVCardValue(org);
                         }
                     }
-                    else if (line.StartsWith("URL:", StringComparison.OrdinalIgnoreCase)){
+                    else if (line.StartsWith("URL:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("URL;", StringComparison.OrdinalIgnoreCase)){
                         var idx = line.IndexOf(':');
-                        if (idx >= 0)
-                            current.Website = line.Substring(idx + 1).Trim();
+                        if (idx >= 0){
+                            var url = line.Substring(idx + 1).Trim();
+                            if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                                url = DecodeQuotedPrintable(url);
+                            current.Website = UnescapeVCardValue(url);
+                        }
                     }
                     else if (line.StartsWith("NOTE:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("NOTE;", StringComparison.OrdinalIgnoreCase)){
                         var idx = line.IndexOf(':');
