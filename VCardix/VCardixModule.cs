@@ -53,6 +53,7 @@ namespace VCardix{
             // PHOTO
             public string PhotoBase64 { get; set; }
             // IMAGE PREFIX
+            [ScriptIgnore]
             public Image PhotoImage{ get { return TSImageHelper.ImageFromBase64(PhotoBase64); } }
             // IMAGE CLEAR
             public void ClearPhoto(){ PhotoBase64 = null; }
@@ -127,6 +128,7 @@ namespace VCardix{
             existing.Organization = updated.Organization;
             existing.Website = updated.Website;
             existing.Note = updated.Note;
+            existing.PhotoBase64 = updated.PhotoBase64;
             return true;
         }
         // DELETE DATA
@@ -134,7 +136,7 @@ namespace VCardix{
         public bool DeleteContact(Guid id){ return contactsById.Remove(id); }
         // ENCODE & DECODE QUOTED PRINTABLE
         // ======================================================================================================
-        public static string EncodeQuotedPrintable(string input, int maxLineLength = 76)
+        public static string EncodeQuotedPrintable(string input, int maxLineLength = 76, bool encodeSemicolon = false)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
             var bytes = Encoding.UTF8.GetBytes(input);
@@ -144,23 +146,35 @@ namespace VCardix{
             {
                 byte b = bytes[i];
                 string toAppend;
-                bool isPrintable = (b >= 33 && b <= 60) || (b >= 62 && b <= 126);
                 if (b == 61)
                 {
                     toAppend = "=3D";
                 }
-                else if (isPrintable)
+                else if (encodeSemicolon && b == 59)
                 {
-                    toAppend = ((char)b).ToString();
-                }
-                else if (b == 9 || b == 32)
-                {
-                    bool atLineEnd = (i == bytes.Length - 1) || (linePos + 1 >= maxLineLength);
-                    toAppend = atLineEnd ? "=" + b.ToString("X2") : ((char)b).ToString();
+                    // RFC 2045: ";" is printable, but in vCard N/ADR it is the structural
+                    // field separator, so it must be encoded (=3B) to survive round-trip.
+                    toAppend = "=3B";
                 }
                 else
                 {
-                    toAppend = "=" + b.ToString("X2");
+                    bool isPrintable = (b >= 33 && b <= 60) || (b >= 62 && b <= 126);
+                    if (isPrintable)
+                    {
+                        toAppend = ((char)b).ToString();
+                    }
+                    else if (b == 9 || b == 32)
+                    {
+                        // RFC 2045: trailing whitespace at end of a line must be encoded.
+                        // Wrap happens at maxLineLength - 3, so a space/tab near that boundary
+                        // is at risk of becoming trailing before a soft break -> encode it.
+                        bool atLineEnd = (i == bytes.Length - 1) || (linePos + 1 >= maxLineLength - 3);
+                        toAppend = atLineEnd ? "=" + b.ToString("X2") : ((char)b).ToString();
+                    }
+                    else
+                    {
+                        toAppend = "=" + b.ToString("X2");
+                    }
                 }
                 if (linePos + toAppend.Length > maxLineLength - 3)
                 {
@@ -264,10 +278,70 @@ namespace VCardix{
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
             // RFC 6350  3.4: \; => ;, \, => ,, \n or \N => newline, \\ => \
-            // Also handle v2.1 \r\n-line endings
-            return text.Replace("\\;", ";").Replace("\\,", ",")
-                       .Replace("\\N", "\n").Replace("\\n", "\n")
-                       .Replace("\\\r\n", "").Replace("\\\\", "\\");
+            // Process escape sequences left-to-right in a single pass so that
+            // sequences like "\\N" (literal backslash + N) are not mis-decoded.
+            var sb = new StringBuilder();
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '\\' && i + 1 < text.Length)
+                {
+                    char next = text[i + 1];
+                    switch (next)
+                    {
+                        case ';': sb.Append(';'); i++; break;
+                        case ',': sb.Append(','); i++; break;
+                        case 'N':
+                        case 'n': sb.Append('\n'); i++; break;
+                        case '\\': sb.Append('\\'); i++; break;
+                        case '\r':
+                            // v2.1 line continuation: drop the backslash and the line ending
+                            if (i + 2 < text.Length && text[i + 2] == '\n') i += 2;
+                            else i++;
+                            break;
+                        default:
+                            // Unknown escape: keep the backslash literally
+                            sb.Append('\\');
+                            break;
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
+        // VCARD HELPER: Split on unescaped semicolons (RFC 6350  3.4)
+        // Structural separators in N/ADR/ORG are bare ";"; a literal ";" is written as "\;".
+        // ======================================================================================================
+        private static string[] SplitVCardSemicolon(string input)
+        {
+            if (input == null) return new string[] { "" };
+            var parts = new List<string>();
+            var sb = new StringBuilder();
+            for (int i = 0; i < input.Length; i++)
+            {
+                char c = input[i];
+                if (c == '\\' && i + 1 < input.Length)
+                {
+                    // Keep the escape sequence together so "\;" is not treated as a separator
+                    sb.Append(c);
+                    sb.Append(input[i + 1]);
+                    i++;
+                }
+                else if (c == ';')
+                {
+                    parts.Add(sb.ToString());
+                    sb.Clear();
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            parts.Add(sb.ToString());
+            return parts.ToArray();
         }
         // VCARD HELPER: Escape vCard text values per RFC 6350  3.4
         // ======================================================================================================
@@ -280,16 +354,57 @@ namespace VCardix{
                        .Replace("\n", "\\n");
         }
         // VCARD HELPER: Escape text value per RFC 6350  3.4 for ADR components
-        // (does NOT escape semicolons as they are structural separators in ADR)
+        // (escapes semicolons too, so a literal ";" inside a component round-trips correctly;
+        //  the ADR property separator remains the unescaped ";" between components)
         // ======================================================================================================
         private static string EscapeAdrComponent(string text)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
-            // Only escape backslash, comma, and newlines - NOT semicolons (structural)
             return text.Replace("\\", "\\\\")
+                       .Replace(";", "\\;")
                        .Replace(",", "\\,")
                        .Replace("\r\n", "\\n")
                        .Replace("\n", "\\n");
+        }
+        // ADDRESS STORAGE: The internal Address field stores the RFC 6350 ADR value form:
+        // 7 components joined by ";", where ";" inside a component is written "\;" (and
+        // "\,", "\\", "\n" for comma/backslash/newline). This is unambiguous and round-trips.
+        // ======================================================================================================
+        internal static string AddressForDisplay(string storedAddress)
+        {
+            if (string.IsNullOrEmpty(storedAddress)) return storedAddress;
+            var comps = SplitVCardSemicolon(storedAddress);
+            var sb = new StringBuilder();
+            for (int i = 0; i < comps.Length; i++)
+            {
+                if (i > 0) sb.Append(';');
+                sb.Append(UnescapeVCardValue(comps[i]));
+            }
+            return sb.ToString();
+        }
+        internal static string AddressForStorage(string displayAddress)
+        {
+            if (string.IsNullOrEmpty(displayAddress)) return displayAddress;
+            var parts = displayAddress.Split(';');
+            var comps = new List<string>();
+            foreach (var p in parts)
+                comps.Add(EscapeAdrComponent(p));
+            return string.Join(";", comps);
+        }
+        internal static string[] SplitStoredAddress(string storedAddress)
+        {
+            return SplitVCardSemicolon(storedAddress ?? "");
+        }
+        internal static string UnescapeAddressComponent(string storedComponent)
+        {
+            return UnescapeVCardValue(storedComponent ?? "");
+        }
+        internal static string JoinStoredAddress(string[] rawComponents)
+        {
+            var comps = new List<string>();
+            foreach (var p in rawComponents)
+                comps.Add(EscapeAdrComponent(p ?? ""));
+            return string.Join(";", comps);
         }
         // ======================================================================================================
         private static HashSet<string> GetPropertyTypes(string header, out string groupPrefix)
@@ -359,9 +474,14 @@ namespace VCardix{
                     }
                     else if (line.StartsWith("N:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("N;", StringComparison.OrdinalIgnoreCase)){
                         string content = line.Substring(line.IndexOf(':') + 1);
-                        if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
-                            content = DecodeQuotedPrintable(content);
-                        var parts = content.Split(';');
+                        bool isQp = line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0;
+                        // For QP-encoded N, the structural ";" separators are literal while an encoded ";"
+                        // is "=3B", so split on the encoded text FIRST, then decode each field.
+                        var parts = SplitVCardSemicolon(content);
+                        if (isQp){
+                            for (int k = 0; k < parts.Length; k++)
+                                parts[k] = DecodeQuotedPrintable(parts[k]);
+                        }
                         current.LastName = parts.Length > 0 ? UnescapeVCardValue(parts[0]) : "";
                         current.FirstName = parts.Length > 1 ? UnescapeVCardValue(parts[1]) : "";
                         current.MiddleName = parts.Length > 2 ? UnescapeVCardValue(parts[2]) : "";
@@ -384,8 +504,9 @@ namespace VCardix{
                             }
                         }
                     }
-                    else if (line.StartsWith("BDAY:", StringComparison.OrdinalIgnoreCase)){
-                        var bdayValue = line.Substring(5).Trim();
+                    else if (line.StartsWith("BDAY:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("BDAY;", StringComparison.OrdinalIgnoreCase)){
+                        int bdayColonIdx = line.IndexOf(':');
+                        var bdayValue = (bdayColonIdx >= 0 ? line.Substring(bdayColonIdx + 1) : line.Substring(5)).Trim();
                         // RFC 6350  6.2.5: BDAY can be DATE (yyyy-MM-dd), DATE-TIME (yyyy-MM-ddTHH:mm:ss), or TEXT
                         if (DateTime.TryParseExact(bdayValue, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
                             current.Birthday = dt;
@@ -410,6 +531,8 @@ namespace VCardix{
                             current.PhoneHome = value;
                         else if (types.Contains("WORK"))
                             current.PhoneWork = value;
+                        else if (string.IsNullOrEmpty(current.PhoneMobile))
+                            current.PhoneMobile = value;
                     }
                     else if (line.StartsWith("EMAIL", StringComparison.OrdinalIgnoreCase)){
                         var idx = line.IndexOf(':');
@@ -459,7 +582,7 @@ namespace VCardix{
                             var adr = line.Substring(idx + 1).Trim();
                             if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
                                 adr = DecodeQuotedPrintable(adr);
-                            var parts = adr.Split(';');
+                            var parts = SplitVCardSemicolon(adr);
                             // RFC 6350  6.3.1: ADR components: PO Box, Extended, Street, Locality, Region, Postal Code, Country
                             // Store as RFC 6350 format: PO Box;Extended;Street;City;Region;Postal;Country (semicolon-separated)
                             string poBox = parts.Length > 0 ? UnescapeVCardValue(parts[0]) : "";
@@ -469,8 +592,8 @@ namespace VCardix{
                             string region = parts.Length > 4 ? UnescapeVCardValue(parts[4]) : "";
                             string postal = parts.Length > 5 ? UnescapeVCardValue(parts[5]) : "";
                             string country = parts.Length > 6 ? UnescapeVCardValue(parts[6]) : "";
-                            // Stored as RFC 6350 semicolon-separated format: POBox;Extended;Street;City;Region;Postal;Country
-                            current.Address = string.Join(";", new[] { poBox, extended, street, city, region, postal, country });
+                            // Stored escaped (RFC 6350): components escaped, joined by unescaped ";"
+                            current.Address = JoinStoredAddress(new[] { poBox, extended, street, city, region, postal, country });
                         }
                     }
                     else if (line.StartsWith("ORG:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("ORG;", StringComparison.OrdinalIgnoreCase)){
@@ -480,7 +603,7 @@ namespace VCardix{
                             if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
                                 org = DecodeQuotedPrintable(org);
                             // RFC 6350  6.6.4: ORG uses semicolons for hierarchy (e.g., "Company;Department")
-                            var orgParts = org.Split(';');
+                            var orgParts = SplitVCardSemicolon(org);
                             current.Organization = UnescapeVCardValue(orgParts[0].Trim());
                         }
                     }
@@ -548,9 +671,14 @@ namespace VCardix{
                     }
                     else if (line.StartsWith("N:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("N;", StringComparison.OrdinalIgnoreCase)){
                         string content = line.Substring(line.IndexOf(':') + 1);
-                        if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
-                            content = DecodeQuotedPrintable(content);
-                        var parts = content.Split(';');
+                        bool isQp = line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0;
+                        // For QP-encoded N, the structural ";" separators are literal while an encoded ";"
+                        // is "=3B", so split on the encoded text FIRST, then decode each field.
+                        var parts = SplitVCardSemicolon(content);
+                        if (isQp){
+                            for (int k = 0; k < parts.Length; k++)
+                                parts[k] = DecodeQuotedPrintable(parts[k]);
+                        }
                         current.LastName = parts.Length > 0 ? UnescapeVCardValue(parts[0]) : "";
                         current.FirstName = parts.Length > 1 ? UnescapeVCardValue(parts[1]) : "";
                         current.MiddleName = parts.Length > 2 ? UnescapeVCardValue(parts[2]) : "";
@@ -572,8 +700,9 @@ namespace VCardix{
                             }
                         }
                     }
-                    else if (line.StartsWith("BDAY:", StringComparison.OrdinalIgnoreCase)){
-                        var bdayValue = line.Substring(5).Trim();
+                    else if (line.StartsWith("BDAY:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("BDAY;", StringComparison.OrdinalIgnoreCase)){
+                        int bdayColonIdx = line.IndexOf(':');
+                        var bdayValue = (bdayColonIdx >= 0 ? line.Substring(bdayColonIdx + 1) : line.Substring(5)).Trim();
                         if (DateTime.TryParseExact(bdayValue, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
                             current.Birthday = dt;
                         else if (DateTime.TryParseExact(bdayValue, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
@@ -596,6 +725,8 @@ namespace VCardix{
                             current.PhoneHome = value;
                         else if (types.Contains("WORK"))
                             current.PhoneWork = value;
+                        else if (string.IsNullOrEmpty(current.PhoneMobile))
+                            current.PhoneMobile = value;
                     }
                     else if (line.StartsWith("EMAIL", StringComparison.OrdinalIgnoreCase)){
                         var idx = line.IndexOf(':');
@@ -642,7 +773,7 @@ namespace VCardix{
                             var adr = line.Substring(idx + 1).Trim();
                             if (line.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0)
                                 adr = DecodeQuotedPrintable(adr);
-                            var parts = adr.Split(';');
+                            var parts = SplitVCardSemicolon(adr);
                             string poBox = parts.Length > 0 ? UnescapeVCardValue(parts[0]) : "";
                             string extended = parts.Length > 1 ? UnescapeVCardValue(parts[1]) : "";
                             string street = parts.Length > 2 ? UnescapeVCardValue(parts[2]) : "";
@@ -650,7 +781,7 @@ namespace VCardix{
                             string region = parts.Length > 4 ? UnescapeVCardValue(parts[4]) : "";
                             string postal = parts.Length > 5 ? UnescapeVCardValue(parts[5]) : "";
                             string country = parts.Length > 6 ? UnescapeVCardValue(parts[6]) : "";
-                            current.Address = string.Join(";", new[] { poBox, extended, street, city, region, postal, country });
+                            current.Address = JoinStoredAddress(new[] { poBox, extended, street, city, region, postal, country });
                         }
                     }
                     else if (line.StartsWith("ORG:", StringComparison.OrdinalIgnoreCase) || line.StartsWith("ORG;", StringComparison.OrdinalIgnoreCase)){
@@ -688,7 +819,9 @@ namespace VCardix{
                     // Check for duplicates before adding
                     bool isDuplicate = contactsById.Values.Any(existing => existing.IsDuplicateWith(current));
                     if (!isDuplicate){
-                        current.Id = Guid.NewGuid();
+                        // Preserve the UID from the file when present and unused; otherwise assign a fresh one
+                        if (current.Id == Guid.Empty || contactsById.ContainsKey(current.Id))
+                            current.Id = Guid.NewGuid();
                         AddContact(current);
                     }else{
                         skippedCount++;
@@ -726,7 +859,7 @@ namespace VCardix{
                     case VCardVersion.V21:
                         sb.AppendLine("VERSION:2.1");
                         sb.AppendLine($"UID:{c.Id}");
-                        string EncodeQP(string text) => EncodeQuotedPrintable(text ?? "");
+                        string EncodeQP(string text) => EncodeQuotedPrintable(text ?? "", 998, true);
                         if (!string.IsNullOrEmpty(c.LastName) || !string.IsNullOrEmpty(c.FirstName) || !string.IsNullOrEmpty(c.MiddleName))
                         {
                             sb.AppendLine("N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:" + $"{EncodeQP(c.LastName ?? "")};" + $"{EncodeQP(c.FirstName ?? "")};" + $"{EncodeQP(c.MiddleName ?? "")};;");
@@ -752,17 +885,18 @@ namespace VCardix{
                         if (!string.IsNullOrEmpty(c.Email3))
                             sb.AppendLine($"EMAIL;INTERNET:{EscapeVCardValue(c.Email3)}");
                                                 {
-                            var addressComps = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
+                            var addressComps = SplitStoredAddress(c.Address ?? "");
                             // RFC 6350  6.3.1: ADR = PO Box;Extended;Street;Locality;Region;Postal;Country
+                            // Stored Address is already in RFC 6350 escaped form
                             var parts = new List<string>
                             {
-                                addressComps.Length > 0 ? EscapeAdrComponent(addressComps[0]) : "",
-                                addressComps.Length > 1 ? EscapeAdrComponent(addressComps[1]) : "",
-                                addressComps.Length > 2 ? EscapeAdrComponent(addressComps[2]) : "",
-                                addressComps.Length > 3 ? EscapeAdrComponent(addressComps[3]) : "",
-                                addressComps.Length > 4 ? EscapeAdrComponent(addressComps[4]) : "",
-                                addressComps.Length > 5 ? EscapeAdrComponent(addressComps[5]) : "",
-                                addressComps.Length > 6 ? EscapeAdrComponent(addressComps[6]) : ""
+                                addressComps.Length > 0 ? addressComps[0] : "",
+                                addressComps.Length > 1 ? addressComps[1] : "",
+                                addressComps.Length > 2 ? addressComps[2] : "",
+                                addressComps.Length > 3 ? addressComps[3] : "",
+                                addressComps.Length > 4 ? addressComps[4] : "",
+                                addressComps.Length > 5 ? addressComps[5] : "",
+                                addressComps.Length > 6 ? addressComps[6] : ""
                             };
                             if (parts.Any(p => !string.IsNullOrEmpty(p)))
                                 sb.AppendLine($"ADR;HOME:{string.Join(";", parts)}");
@@ -808,16 +942,16 @@ namespace VCardix{
                         if (!string.IsNullOrEmpty(c.Email3))
                             sb.AppendLine(FoldVcfLine($"EMAIL;TYPE=INTERNET:{EscapeVCardValue(c.Email3)}"));
                         {
-                            var addressComps = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
+                            var addressComps = SplitStoredAddress(c.Address ?? "");
                             var parts = new List<string>
                             {
-                                addressComps.Length > 0 ? EscapeAdrComponent(addressComps[0]) : "",
-                                addressComps.Length > 1 ? EscapeAdrComponent(addressComps[1]) : "",
-                                addressComps.Length > 2 ? EscapeAdrComponent(addressComps[2]) : "",
-                                addressComps.Length > 3 ? EscapeAdrComponent(addressComps[3]) : "",
-                                addressComps.Length > 4 ? EscapeAdrComponent(addressComps[4]) : "",
-                                addressComps.Length > 5 ? EscapeAdrComponent(addressComps[5]) : "",
-                                addressComps.Length > 6 ? EscapeAdrComponent(addressComps[6]) : ""
+                                addressComps.Length > 0 ? addressComps[0] : "",
+                                addressComps.Length > 1 ? addressComps[1] : "",
+                                addressComps.Length > 2 ? addressComps[2] : "",
+                                addressComps.Length > 3 ? addressComps[3] : "",
+                                addressComps.Length > 4 ? addressComps[4] : "",
+                                addressComps.Length > 5 ? addressComps[5] : "",
+                                addressComps.Length > 6 ? addressComps[6] : ""
                             };
                             if (parts.Any(p => !string.IsNullOrEmpty(p)))
                                 sb.AppendLine(FoldVcfLine($"ADR;TYPE=HOME:{string.Join(";", parts)}"));
@@ -865,16 +999,16 @@ namespace VCardix{
                         if (!string.IsNullOrEmpty(c.Email3))
                             sb.AppendLine(FoldVcfLine($"EMAIL:{EscapeVCardValue(c.Email3)}"));
                         {
-                            var addressComps = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
+                            var addressComps = SplitStoredAddress(c.Address ?? "");
                             var parts = new List<string>
                             {
-                                addressComps.Length > 0 ? EscapeAdrComponent(addressComps[0]) : "",
-                                addressComps.Length > 1 ? EscapeAdrComponent(addressComps[1]) : "",
-                                addressComps.Length > 2 ? EscapeAdrComponent(addressComps[2]) : "",
-                                addressComps.Length > 3 ? EscapeAdrComponent(addressComps[3]) : "",
-                                addressComps.Length > 4 ? EscapeAdrComponent(addressComps[4]) : "",
-                                addressComps.Length > 5 ? EscapeAdrComponent(addressComps[5]) : "",
-                                addressComps.Length > 6 ? EscapeAdrComponent(addressComps[6]) : ""
+                                addressComps.Length > 0 ? addressComps[0] : "",
+                                addressComps.Length > 1 ? addressComps[1] : "",
+                                addressComps.Length > 2 ? addressComps[2] : "",
+                                addressComps.Length > 3 ? addressComps[3] : "",
+                                addressComps.Length > 4 ? addressComps[4] : "",
+                                addressComps.Length > 5 ? addressComps[5] : "",
+                                addressComps.Length > 6 ? addressComps[6] : ""
                             };
                             if (parts.Any(p => !string.IsNullOrEmpty(p)))
                                 sb.AppendLine(FoldVcfLine($"ADR;TYPE=home:{string.Join(";", parts)}"));
@@ -902,140 +1036,16 @@ namespace VCardix{
         public void LoadCsv(string filePath)
         {
             contactsById.Clear();
-            var lines = File.ReadAllLines(filePath, Encoding.UTF8);
-            if (lines.Length == 0) return;
-            var headers = ParseCsvLine(lines[0]);
-            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < headers.Length; i++)
+            var records = ParseCsvRecords(File.ReadAllText(filePath, Encoding.UTF8));
+            if (records.Count == 0) return;
+            var headers = records[0];
+            var map = BuildCsvHeaderMap(headers);
+            var contactList = new PrefixModule[records.Count - 1];
+            Parallel.For(1, records.Count, i =>
             {
-                string h = headers[i]?.Trim();
-                if (string.IsNullOrEmpty(h)) continue;
-                string lower = h.ToLowerInvariant();
-                if (lower == "first name" || lower == "given name")
-                    map[h] = "FirstName";
-                else if (lower == "middle name" || lower == "additional name")
-                    map[h] = "MiddleName";
-                else if (lower == "last name" || lower == "family name" || lower == "surname")
-                    map[h] = "LastName";
-                else if (lower == "birthday" || lower == "birth date" || lower == "bday")
-                    map[h] = "Birthday";
-                else if (lower == "organization name" || lower == "org" || lower == "company")
-                    map[h] = "Organization";
-                else if (lower == "notes" || lower == "note")
-                    map[h] = "Note";
-                else if (lower == "website" || lower == "url" || lower == "website 1 - value")
-                    map[h] = "Website";
-                else if (lower.StartsWith("address") && (lower.Contains("street") || lower.Contains("city") || lower.Contains("postal") || lower.Contains("region") || lower.Contains("country")))
-                    map[h] = "Address";
-                else if ((lower.Contains("phone") && lower.Contains("type")) || (lower.Contains("phone") && lower.Contains("label")))
-                    map[h] = "PhoneType";
-                else if (lower.Contains("phone") && lower.Contains("value"))
-                    map[h] = "PhoneValue";
-                else if (lower.StartsWith("e-mail") && lower.Contains("type"))
-                    map[h] = "EmailType";
-                else if (lower.StartsWith("e-mail") && lower.Contains("value"))
-                    map[h] = "EmailValue";
-                else if (lower == "photo" || lower == "photobase64")
-                    map[h] = "PhotoBase64";
-                else if (lower.StartsWith("address") && lower.Contains("type"))
-                    map[h] = "AddressType";
-                else
-                    map[h] = h;
-            }
-            var contactList = new PrefixModule[lines.Length - 1];
-            Parallel.For(1, lines.Length, i =>
-            {
-                var values = ParseCsvLine(lines[i]);
-                if (values.Length == 0) return;
-                var contact = new PrefixModule { Id = Guid.NewGuid() };
-                var phones = new List<(string type, string value)>();
-                var emails = new List<(string type, string value)>();
-                string addressStreet = null, addressCity = null, addressPostal = null, addressRegion = null, addressCountry = null;
-                string addressType = null;
-                for (int col = 0; col < headers.Length && col < values.Length; col++)
-                {
-                    string header = headers[col];
-                    string val = values[col]?.Trim();
-                    if (string.IsNullOrEmpty(val)) continue;
-                    if (!map.TryGetValue(header, out string target)) continue;
-                    switch (target)
-                    {
-                        case "FirstName": contact.FirstName = val; break;
-                        case "MiddleName": contact.MiddleName = val; break;
-                        case "LastName": contact.LastName = val; break;
-                        case "Birthday":
-                            if (DateTime.TryParse(val, out var dt)) contact.Birthday = dt;
-                            break;
-                        case "Organization": contact.Organization = val; break;
-                        case "Note": contact.Note = val; break;
-                        case "Website": contact.Website = val; break;
-                        case "PhotoBase64": contact.PhotoBase64 = val; break;
-                        case "PhoneType":
-                            if (col + 1 < values.Length && map.TryGetValue(headers[col + 1], out string nextTarget) && nextTarget == "PhoneValue")
-                            {
-                                string phoneVal = values[col + 1]?.Trim();
-                                if (!string.IsNullOrEmpty(phoneVal))
-                                    phones.Add((val, phoneVal));
-                            }
-                            break;
-                        case "EmailType":
-                            if (col + 1 < values.Length && map.TryGetValue(headers[col + 1], out string nextEmailTarget) && nextEmailTarget == "EmailValue")
-                            {
-                                string emailVal = values[col + 1]?.Trim();
-                                if (!string.IsNullOrEmpty(emailVal))
-                                    emails.Add((val, emailVal));
-                            }
-                            break;
-                        case "AddressType":
-                            addressType = val;
-                            break;
-                        case "Address":
-                            string lowerHeader = header.ToLowerInvariant();
-                            if (lowerHeader.Contains("street") || lowerHeader.Contains("address line"))
-                                addressStreet = val;
-                            else if (lowerHeader.Contains("city"))
-                                addressCity = val;
-                            else if (lowerHeader.Contains("postal") || lowerHeader.Contains("zip"))
-                                addressPostal = val;
-                            else if (lowerHeader.Contains("region") || lowerHeader.Contains("state"))
-                                addressRegion = val;
-                            else if (lowerHeader.Contains("country"))
-                                addressCountry = val;
-                            break;
-                    }
-                }
-                foreach (var (type, value) in phones)
-                {
-                    string lowerType = type.ToLowerInvariant();
-                    if (lowerType.Contains("mobile") || lowerType.Contains("cell") || lowerType.Contains("cep") || lowerType.Contains("mobil") || lowerType.Contains("cellular"))
-                        contact.PhoneMobile = value;
-                    else if (lowerType.Contains("home") || lowerType.Contains("ev"))
-                        contact.PhoneHome = value;
-                    else if (lowerType.Contains("work") || lowerType.Contains("iş") || lowerType.Contains("business") || lowerType.Contains("office") || lowerType.Contains("company"))
-                        contact.PhoneWork = value;
-                    else if (string.IsNullOrEmpty(contact.PhoneMobile))
-                        contact.PhoneMobile = value;
-                }
-                int emailIdx = 0;
-                foreach (var (type, value) in emails)
-                {
-                    if (emailIdx == 0) contact.Email1 = value;
-                    else if (emailIdx == 1) contact.Email2 = value;
-                    else if (emailIdx == 2) contact.Email3 = value;
-                    emailIdx++;
-                    if (emailIdx >= 3) break;
-                }
-                if (!string.IsNullOrEmpty(addressStreet) || !string.IsNullOrEmpty(addressCity))
-                {
-                    string[] adrParts = new string[7];
-                    adrParts[2] = addressStreet ?? "";
-                    adrParts[3] = addressCity ?? "";
-                    adrParts[4] = addressRegion ?? "";
-                    adrParts[5] = addressPostal ?? "";
-                    adrParts[6] = addressCountry ?? "";
-                    contact.Address = string.Join(";", adrParts);
-                }
-                contactList[i - 1] = contact;
+                var values = records[i];
+                if (values.Length == 0 || values.All(v => string.IsNullOrEmpty(v))) return;
+                contactList[i - 1] = ParseCsvRow(headers, map, values);
             });
             foreach (var contact in contactList)
             {
@@ -1047,9 +1057,44 @@ namespace VCardix{
         // ======================================================================================================
         public int MergeLoadCsv(string filePath)
         {
-            var lines = File.ReadAllLines(filePath, Encoding.UTF8);
-            if (lines.Length == 0) return 0;
-            var headers = ParseCsvLine(lines[0]);
+            var records = ParseCsvRecords(File.ReadAllText(filePath, Encoding.UTF8));
+            if (records.Count == 0) return 0;
+            var headers = records[0];
+            var map = BuildCsvHeaderMap(headers);
+            var contactList = new PrefixModule[records.Count - 1];
+            Parallel.For(1, records.Count, i =>
+            {
+                var values = records[i];
+                if (values.Length == 0 || values.All(v => string.IsNullOrEmpty(v))) return;
+                contactList[i - 1] = ParseCsvRow(headers, map, values);
+            });
+            int skippedCount = 0;
+            foreach (var contact in contactList)
+            {
+                if (contact != null)
+                {
+                    lock (contactsById)
+                    {
+                        bool isDuplicate = contactsById.Values.Any(existing => existing.IsDuplicateWith(contact));
+                        if (!isDuplicate)
+                        {
+                            if (contact.Id == Guid.Empty || contactsById.ContainsKey(contact.Id))
+                                contact.Id = Guid.NewGuid();
+                            contactsById[contact.Id] = contact;
+                        }
+                        else
+                        {
+                            skippedCount++;
+                        }
+                    }
+                }
+            }
+            return skippedCount;
+        }
+        // CSV HELPERS: Unified header mapping + row parsing shared by LoadCsv and MergeLoadCsv
+        // ======================================================================================================
+        private Dictionary<string, string> BuildCsvHeaderMap(string[] headers)
+        {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < headers.Length; i++)
             {
@@ -1064,23 +1109,35 @@ namespace VCardix{
                     map[h] = "LastName";
                 else if (lower == "birthday" || lower == "birth date" || lower == "bday")
                     map[h] = "Birthday";
-                else if (lower == "organization name" || lower == "org" || lower == "company")
+                else if (lower == "organization name" || lower == "org" || lower == "company" || lower == "organization 1 - name")
                     map[h] = "Organization";
                 else if (lower == "notes" || lower == "note")
                     map[h] = "Note";
-                else if (lower == "website 1 - value" || lower == "website" || lower == "url")
+                else if (lower == "website" || lower == "url" || lower.Contains("website") && lower.Contains("value"))
                     map[h] = "Website";
-                else if (lower.Contains("phone") && lower.Contains("mobile") || lower.Contains("phone") && lower.Contains("cell"))
+                else if (lower.StartsWith("address") && (lower.Contains("type") || lower.Contains("label")))
+                    map[h] = "AddressType";
+                else if (lower.StartsWith("address"))
+                    map[h] = "Address";
+                else if ((lower.Contains("phone") && (lower.Contains("type") || lower.Contains("label"))))
+                    map[h] = "PhoneType";
+                else if (lower.Contains("phone") && lower.Contains("value"))
+                    map[h] = "PhoneValue";
+                else if (lower.Contains("phone") && (lower.Contains("mobile") || lower.Contains("cell") || lower.Contains("cep")))
                     map[h] = "PhoneMobile";
-                else if (lower.Contains("phone") && lower.Contains("home"))
+                else if (lower.Contains("phone") && (lower.Contains("home") || lower.Contains("ev")))
                     map[h] = "PhoneHome";
-                else if (lower.Contains("phone") && lower.Contains("work"))
+                else if (lower.Contains("phone") && (lower.Contains("work") || lower.Contains("iş") || lower.Contains("business") || lower.Contains("office")))
                     map[h] = "PhoneWork";
-                else if ((lower.Contains("email") || lower.Contains("e-mail")) && lower.Contains("1"))
+                else if ((lower.Contains("e-mail") || lower.Contains("email")) && (lower.Contains("type") || lower.Contains("label")))
+                    map[h] = "EmailType";
+                else if ((lower.Contains("e-mail") || lower.Contains("email")) && lower.Contains("value"))
+                    map[h] = "EmailValue";
+                else if ((lower.Contains("e-mail") || lower.Contains("email")) && lower.Contains("1"))
                     map[h] = "Email1";
-                else if ((lower.Contains("email") || lower.Contains("e-mail")) && lower.Contains("2"))
+                else if ((lower.Contains("e-mail") || lower.Contains("email")) && lower.Contains("2"))
                     map[h] = "Email2";
-                else if ((lower.Contains("email") || lower.Contains("e-mail")) && lower.Contains("3"))
+                else if ((lower.Contains("e-mail") || lower.Contains("email")) && lower.Contains("3"))
                     map[h] = "Email3";
                 else if (lower.Contains("address") || lower.Contains("street"))
                     map[h] = "Address";
@@ -1089,110 +1146,181 @@ namespace VCardix{
                 else
                     map[h] = h;
             }
-            var contactList = new PrefixModule[lines.Length - 1];
-            int skippedCount = 0;
-            Parallel.For(1, lines.Length, i =>
+            return map;
+        }
+        private PrefixModule ParseCsvRow(string[] headers, Dictionary<string, string> map, string[] values)
+        {
+            var contact = new PrefixModule { Id = Guid.NewGuid() };
+            var phones = new List<(string type, string value)>();
+            var emails = new List<(string type, string value)>();
+            string addressPoBox = null, addressExtended = null, addressStreet = null, addressCity = null,
+                   addressRegion = null, addressPostal = null, addressCountry = null, addressFormatted = null;
+            for (int col = 0; col < headers.Length && col < values.Length; col++)
             {
-                var values = ParseCsvLine(lines[i]);
-                if (values.Length == 0) return;
-                var contact = new PrefixModule { Id = Guid.NewGuid() };
-                var phones = new List<(string type, string value)>();
-                var emails = new List<(string type, string value)>();
-                for (int j = 0; j < headers.Length && j < values.Length; j++)
+                string header = headers[col]?.Trim();
+                string val = values[col]?.Trim();
+                string rawVal = values[col];
+                if (string.IsNullOrEmpty(header) || string.IsNullOrEmpty(val)) continue;
+                if (!map.TryGetValue(header, out string target)) continue;
+                switch (target)
                 {
-                    string header = headers[j]?.Trim();
-                    string value = values[j]?.Trim();
-                    if (string.IsNullOrEmpty(header) || string.IsNullOrEmpty(value)) continue;
-                    if (!map.TryGetValue(header, out string mapped)) continue;
-                    switch (mapped)
-                    {
-                        case "FirstName": contact.FirstName = value; break;
-                        case "MiddleName": contact.MiddleName = value; break;
-                        case "LastName": contact.LastName = value; break;
-                        case "Birthday":
-                            if (DateTime.TryParse(value, out DateTime bd)) contact.Birthday = bd;
-                            break;
-                        case "Organization": contact.Organization = value; break;
-                        case "Note": contact.Note = value; break;
-                        case "Website": contact.Website = value; break;
-                        case "PhoneMobile": contact.PhoneMobile = value; break;
-                        case "PhoneHome": contact.PhoneHome = value; break;
-                        case "PhoneWork": contact.PhoneWork = value; break;
-                        case "Email1": contact.Email1 = value; break;
-                        case "Email2": contact.Email2 = value; break;
-                        case "Email3": contact.Email3 = value; break;
-                        case "Address": contact.Address = value; break;
-                        case "PhotoBase64": contact.PhotoBase64 = value; break;
-                    }
-                }
-                contactList[i - 1] = contact;
-            });
-            foreach (var contact in contactList)
-            {
-                if (contact != null)
-                {
-                    // Check for duplicates before adding
-                    lock (contactsById)
-                    {
-                        bool isDuplicate = contactsById.Values.Any(existing => existing.IsDuplicateWith(contact));
-                        if (!isDuplicate)
+                    case "FirstName": contact.FirstName = val; break;
+                    case "MiddleName": contact.MiddleName = val; break;
+                    case "LastName": contact.LastName = val; break;
+                    case "Birthday":
+                        if (DateTime.TryParse(val, out var dt)) contact.Birthday = dt;
+                        break;
+                    case "Organization": contact.Organization = val; break;
+                    case "Note": contact.Note = rawVal; break;
+                    case "Website": contact.Website = val; break;
+                    case "PhotoBase64":
+                        // Google's Photo column contains a URL, not base64 -> keep only real base64 data
+                        if (!val.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                            !val.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                            !val.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                            contact.PhotoBase64 = val;
+                        break;
+                    case "PhoneMobile": contact.PhoneMobile = val; break;
+                    case "PhoneHome": contact.PhoneHome = val; break;
+                    case "PhoneWork": contact.PhoneWork = val; break;
+                    case "Email1": contact.Email1 = val; break;
+                    case "Email2": contact.Email2 = val; break;
+                    case "Email3": contact.Email3 = val; break;
+                    case "PhoneType":
+                        if (col + 1 < headers.Length && col + 1 < values.Length &&
+                            map.TryGetValue(headers[col + 1]?.Trim(), out string nextTarget) && nextTarget == "PhoneValue")
                         {
-                            contact.Id = Guid.NewGuid();
-                            contactsById[contact.Id] = contact;
+                            string phoneVal = values[col + 1]?.Trim();
+                            if (!string.IsNullOrEmpty(phoneVal))
+                                phones.Add((val, phoneVal));
                         }
+                        break;
+                    case "EmailType":
+                        if (col + 1 < headers.Length && col + 1 < values.Length &&
+                            map.TryGetValue(headers[col + 1]?.Trim(), out string nextEmailTarget) && nextEmailTarget == "EmailValue")
+                        {
+                            string emailVal = values[col + 1]?.Trim();
+                            if (!string.IsNullOrEmpty(emailVal))
+                                emails.Add((val, emailVal));
+                        }
+                        break;
+                    case "Address":
+                        string lowerHeader = header.ToLowerInvariant();
+                        if (lowerHeader.Contains("po box"))
+                            addressPoBox = val;
+                        else if (lowerHeader.Contains("extended"))
+                            addressExtended = val;
+                        else if (lowerHeader.Contains("formatted"))
+                            addressFormatted = val;
+                        else if (lowerHeader.Contains("street") || lowerHeader.Contains("address line"))
+                            addressStreet = val;
+                        else if (lowerHeader.Contains("city"))
+                            addressCity = val;
+                        else if (lowerHeader.Contains("postal") || lowerHeader.Contains("zip"))
+                            addressPostal = val;
+                        else if (lowerHeader.Contains("region") || lowerHeader.Contains("state"))
+                            addressRegion = val;
+                        else if (lowerHeader.Contains("country"))
+                            addressCountry = val;
                         else
-                        {
-                            skippedCount++;
-                        }
-                    }
+                            addressStreet = val;
+                        break;
                 }
             }
-            return skippedCount;
+            foreach (var (type, value) in phones)
+            {
+                string lowerType = type.ToLowerInvariant();
+                if (lowerType.Contains("mobile") || lowerType.Contains("cell") || lowerType.Contains("cep") || lowerType.Contains("mobil") || lowerType.Contains("cellular"))
+                    contact.PhoneMobile = value;
+                else if (lowerType.Contains("home") || lowerType.Contains("ev"))
+                    contact.PhoneHome = value;
+                else if (lowerType.Contains("work") || lowerType.Contains("iş") || lowerType.Contains("business") || lowerType.Contains("office") || lowerType.Contains("company"))
+                    contact.PhoneWork = value;
+                else if (string.IsNullOrEmpty(contact.PhoneMobile))
+                    contact.PhoneMobile = value;
+            }
+            int emailIdx = 0;
+            foreach (var (type, value) in emails)
+            {
+                if (emailIdx == 0) contact.Email1 = value;
+                else if (emailIdx == 1) contact.Email2 = value;
+                else if (emailIdx == 2) contact.Email3 = value;
+                emailIdx++;
+                if (emailIdx >= 3) break;
+            }
+            // Fall back to Google's formatted address when no structured parts are present
+            if (string.IsNullOrEmpty(addressStreet) && !string.IsNullOrEmpty(addressFormatted))
+                addressStreet = addressFormatted;
+            if (!string.IsNullOrEmpty(addressStreet) || !string.IsNullOrEmpty(addressCity) ||
+                !string.IsNullOrEmpty(addressPoBox) || !string.IsNullOrEmpty(addressExtended) ||
+                !string.IsNullOrEmpty(addressRegion) || !string.IsNullOrEmpty(addressPostal) ||
+                !string.IsNullOrEmpty(addressCountry))
+            {
+                string[] adrParts = new string[7];
+                adrParts[0] = addressPoBox ?? "";
+                adrParts[1] = addressExtended ?? "";
+                adrParts[2] = addressStreet ?? "";
+                adrParts[3] = addressCity ?? "";
+                adrParts[4] = addressRegion ?? "";
+                adrParts[5] = addressPostal ?? "";
+                adrParts[6] = addressCountry ?? "";
+                contact.Address = JoinStoredAddress(adrParts);
+            }
+            return contact;
         }
         public void SaveCsv(string filePath, bool includePhoto = false){
             using (var sw = new StreamWriter(filePath, false, Encoding.UTF8)){
-                string header = "\"First Name\",\"Middle Name\",\"Last Name\",\"Organization Name\",\"Birthday\",\"Notes\",\"Website 1 - Value\"," +
-                                "\"Phone 1 - Type\",\"Phone 1 - Value\",\"Phone 2 - Type\",\"Phone 2 - Value\",\"Phone 3 - Type\",\"Phone 3 - Value\"," +
-                                "\"E-mail 1 - Type\",\"E-mail 1 - Value\",\"E-mail 2 - Type\",\"E-mail 2 - Value\",\"E-mail 3 - Type\",\"E-mail 3 - Value\"," +
-                                "\"Address 1 - Type\",\"Address 1 - Street\",\"Address 1 - City\",\"Address 1 - Postal Code\",\"Address 1 - Region\",\"Address 1 - Country\"";
+                // Google Contacts compatible export (Label-based headers, 2026 format)
+                string header = "\"First Name\",\"Middle Name\",\"Last Name\",\"Organization Name\",\"Birthday\",\"Notes\"," +
+                                "\"Website 1 - Label\",\"Website 1 - Value\"," +
+                                "\"E-mail 1 - Label\",\"E-mail 1 - Value\",\"E-mail 2 - Label\",\"E-mail 2 - Value\",\"E-mail 3 - Label\",\"E-mail 3 - Value\"," +
+                                "\"Phone 1 - Label\",\"Phone 1 - Value\",\"Phone 2 - Label\",\"Phone 2 - Value\",\"Phone 3 - Label\",\"Phone 3 - Value\"," +
+                                "\"Address 1 - Label\",\"Address 1 - Formatted\",\"Address 1 - Street\",\"Address 1 - City\",\"Address 1 - PO Box\",\"Address 1 - Region\",\"Address 1 - Postal Code\",\"Address 1 - Country\",\"Address 1 - Extended Address\"";
                 if (includePhoto){
-                    header += ",\"PhotoBase64\"";
+                    header += ",\"Photo\"";
                 }
                 sw.Write(header);
+                sw.WriteLine();
                 var contacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")).ToList();
                 for (int i = 0; i < contacts.Count; i++){
                     var c = contacts[i];
-                    var addressParts = (c.Address ?? "").Split(new[] { ';' }, StringSplitOptions.None);
-                    string street = addressParts.Length > 2 ? addressParts[2] : "";
-                    string city = addressParts.Length > 3 ? addressParts[3] : "";
-                    string postal = addressParts.Length > 5 ? addressParts[5] : "";
-                    string region = addressParts.Length > 4 ? addressParts[4] : "";
-                    string country = addressParts.Length > 6 ? addressParts[6] : "";
-                    var phoneTypes = new[] { "Mobile", "Home", "Work" };
+                    var addressParts = SplitStoredAddress(c.Address ?? "");
+                    string poBox = addressParts.Length > 0 ? UnescapeVCardValue(addressParts[0]) : "";
+                    string extended = addressParts.Length > 1 ? UnescapeVCardValue(addressParts[1]) : "";
+                    string street = addressParts.Length > 2 ? UnescapeVCardValue(addressParts[2]) : "";
+                    string city = addressParts.Length > 3 ? UnescapeVCardValue(addressParts[3]) : "";
+                    string region = addressParts.Length > 4 ? UnescapeVCardValue(addressParts[4]) : "";
+                    string postal = addressParts.Length > 5 ? UnescapeVCardValue(addressParts[5]) : "";
+                    string country = addressParts.Length > 6 ? UnescapeVCardValue(addressParts[6]) : "";
+                    // Google style formatted address: "street, city region postal country"
+                    string formatted = string.Join(", ",
+                        new[] { street, city, string.IsNullOrEmpty(region) ? "" : region,
+                                postal, country }.Where(p => !string.IsNullOrWhiteSpace(p)));
+                    if (string.IsNullOrEmpty(formatted) && !string.IsNullOrEmpty(poBox))
+                        formatted = poBox;
+                    var phoneLabels = new[] { "Mobile", "Home", "Work" };
                     var phoneValues = new[] { c.PhoneMobile, c.PhoneHome, c.PhoneWork };
-                    var emailTypes = new[] { "Work", "Other", "Other" };
+                    var emailLabels = new[] { "Work", "Other", "Other" };
                     var emailValues = new[] { c.Email1, c.Email2, c.Email3 };
-                    string addressType = "Home";
+                    string addressLabel = "Home";
                     var row = new List<string>{
                         EscapeCsv(c.FirstName), EscapeCsv(c.MiddleName), EscapeCsv(c.LastName),
                         EscapeCsv(c.Organization),
                         c.Birthday?.ToString("yyyy-MM-dd") ?? "",
                         EscapeCsv(c.Note),
-                        EscapeCsv(c.Website),
-                        // Phone 1
-                        EscapeCsv(phoneTypes[0]), EscapeCsv(phoneValues[0]),
-                        // Phone 2
-                        EscapeCsv(phoneTypes[1]), EscapeCsv(phoneValues[1]),
-                        // Phone 3
-                        EscapeCsv(phoneTypes[2]), EscapeCsv(phoneValues[2]),
-                        // E-Mail 1
-                        EscapeCsv(emailTypes[0]), EscapeCsv(emailValues[0]),
-                        // E-Mail 2
-                        EscapeCsv(emailTypes[1]), EscapeCsv(emailValues[1]),
-                        // E-Mail 3
-                        EscapeCsv(emailTypes[2]), EscapeCsv(emailValues[2]),
-                        // Adress
-                        EscapeCsv(addressType), EscapeCsv(street), EscapeCsv(city), EscapeCsv(postal), EscapeCsv(region), EscapeCsv(country)
+                        EscapeCsv("Homepage"), EscapeCsv(c.Website),
+                        // E-Mails
+                        EscapeCsv(emailLabels[0]), EscapeCsv(emailValues[0]),
+                        EscapeCsv(emailLabels[1]), EscapeCsv(emailValues[1]),
+                        EscapeCsv(emailLabels[2]), EscapeCsv(emailValues[2]),
+                        // Phones
+                        EscapeCsv(phoneLabels[0]), EscapeCsv(phoneValues[0]),
+                        EscapeCsv(phoneLabels[1]), EscapeCsv(phoneValues[1]),
+                        EscapeCsv(phoneLabels[2]), EscapeCsv(phoneValues[2]),
+                        // Address
+                        EscapeCsv(addressLabel), EscapeCsv(formatted),
+                        EscapeCsv(street), EscapeCsv(city), EscapeCsv(poBox),
+                        EscapeCsv(region), EscapeCsv(postal), EscapeCsv(country), EscapeCsv(extended)
                     };
                     if (includePhoto){
                         row.Add(EscapeCsv(c.PhotoBase64));
@@ -1237,6 +1365,50 @@ namespace VCardix{
             }
             values.Add(sb.ToString());
             return values.ToArray();
+        }
+        // CSV RECORD PARSER: Splits an entire CSV file into records (rows),
+        // respecting quoted fields so that embedded newlines in a field (e.g. a multi-line Note)
+        // do not split the record.
+        // ======================================================================================================
+        private static List<string[]> ParseCsvRecords(string text)
+        {
+            var records = new List<string[]>();
+            var fields = new List<string>();
+            var sb = new StringBuilder();
+            bool inQuotes = false;
+            int i = 0;
+            while (i < text.Length){
+                char c = text[i];
+                if (c == '"'){
+                    if (inQuotes && i + 1 < text.Length && text[i + 1] == '"'){
+                        sb.Append('"');
+                        i++;
+                    }else{
+                        inQuotes = !inQuotes;
+                    }
+                }else if (c == ',' && !inQuotes){
+                    fields.Add(sb.ToString());
+                    sb.Clear();
+                }else if ((c == '\r' || c == '\n') && !inQuotes){
+                    // End of record (outside quotes)
+                    fields.Add(sb.ToString());
+                    records.Add(fields.ToArray());
+                    fields.Clear();
+                    sb.Clear();
+                    // Skip \r\n as one break
+                    if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                        i++;
+                }else{
+                    sb.Append(c);
+                }
+                i++;
+            }
+            // Trailing record without trailing newline
+            if (sb.Length > 0 || fields.Count > 0){
+                fields.Add(sb.ToString());
+                records.Add(fields.ToArray());
+            }
+            return records;
         }
         // JSON LOAD/SAVE
         // ======================================================================================================
@@ -1284,6 +1456,14 @@ namespace VCardix{
         public void SaveJson(string filePath){
             var serializer = new JavaScriptSerializer{ MaxJsonLength = Int32.MaxValue };
             var orderedContacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")).ToList();
+            // JavaScriptSerializer converts Unspecified/Local DateTime to UTC, shifting the date by the
+            // local UTC offset (e.g. 17 May -> 16 May). Saving Birthday as Utc wall-clock keeps the
+            // date exact across round-trips. Kind is cosmetic for equality/formatting, so this is safe.
+            foreach (var c in orderedContacts)
+            {
+                if (c.Birthday.HasValue)
+                    c.Birthday = DateTime.SpecifyKind(c.Birthday.Value.Date, DateTimeKind.Utc);
+            }
             string json = serializer.Serialize(orderedContacts);
             File.WriteAllText(filePath, json, Encoding.UTF8);
         }
@@ -1340,11 +1520,16 @@ namespace VCardix{
         // =========================
         public static Image ImageFromBase64(string base64){
             if (string.IsNullOrEmpty(base64)) return null;
-            byte[] bytes = Convert.FromBase64String(base64);
-            using (var ms = new MemoryStream(bytes)){
-                using (var img = Image.FromStream(ms)){
-                    return new Bitmap(img);
+            try{
+                byte[] bytes = Convert.FromBase64String(base64);
+                using (var ms = new MemoryStream(bytes)){
+                    using (var img = Image.FromStream(ms)){
+                        return new Bitmap(img);
+                    }
                 }
+            }
+            catch{
+                return null;
             }
         }
         // DETECT MIME TYPE FROM BASE64 DATA (PNG, JPEG, GIF, BMP, TIFF)

@@ -208,7 +208,7 @@ namespace VCardix{
             // LOAD MODULE PRELOAD
             RunSoftwareEngine();
             //
-            Task softwareUpdateCheck = Task.Run(() => Software_update_check(0));
+            Task.Run(() => Software_update_check(0));
         }
         // GET PERSON DATA FROM INPUTS
         // ====================================================================================================== 
@@ -227,8 +227,8 @@ namespace VCardix{
                 Email1 = textBoxEmail1.Text.Trim(),
                 Email2 = textBoxEmail2.Text.Trim(),
                 Email3 = textBoxEmail3.Text.Trim(),
-                // Save the address only if the user has manually changed it
-                Address = addressUserChanged ? textBoxAddress.Text.Trim() : (selectedContact?.Address ?? ""),
+                // Save the address only if the user has manually changed it (converted to stored RFC 6350 form)
+                Address = addressUserChanged ? VCardixModule.AddressForStorage(textBoxAddress.Text.Trim()) : (selectedContact?.Address ?? ""),
                 Organization = textBoxOrganization.Text.Trim(),
                 Website = textBoxWebsite.Text.Trim(),
                 Note = textBoxNote.Text.Trim(),
@@ -412,7 +412,7 @@ namespace VCardix{
                 textBoxEmail2.Text = c.Email2;
                 textBoxEmail3.Text = c.Email3;
                 //
-                textBoxAddress.Text = c.Address;
+                textBoxAddress.Text = VCardixModule.AddressForDisplay(c.Address);
                 textBoxOrganization.Text = c.Organization;
                 textBoxWebsite.Text = c.Website;
                 textBoxNote.Text = c.Note;

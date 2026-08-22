@@ -18,15 +18,15 @@ namespace VCardix{
                     string address = transfer_main_form.textBoxAddress.Text;
                     if (!string.IsNullOrEmpty(address)){
                         // RFC 6350 6.3.1: ADR semicolon-separated: POBox;Extended;Street;City;Region;Postal;Country
-                        string[] parts = address.Split(new[] { ';' }, StringSplitOptions.None);
+                        string[] parts = VCardixModule.SplitStoredAddress(VCardixModule.AddressForStorage(address));
                         // RFC 6350 7-part: POBox;Extended;Street;City;Region;Postal;Country
-                        if (parts.Length >= 1) txtPOBox.Text = parts[0];
-                        if (parts.Length >= 2) txtApartment.Text = parts[1];
-                        if (parts.Length >= 3) txtStreet.Text = parts[2];
-                        if (parts.Length >= 4) txtCity.Text = parts[3];
-                        if (parts.Length >= 5) txtRegion.Text = parts[4];
-                        if (parts.Length >= 6) txtPostal.Text = parts[5];
-                        if (parts.Length >= 7) txtCountry.Text = parts[6];
+                        if (parts.Length >= 1) txtPOBox.Text = VCardixModule.UnescapeAddressComponent(parts[0]);
+                        if (parts.Length >= 2) txtApartment.Text = VCardixModule.UnescapeAddressComponent(parts[1]);
+                        if (parts.Length >= 3) txtStreet.Text = VCardixModule.UnescapeAddressComponent(parts[2]);
+                        if (parts.Length >= 4) txtCity.Text = VCardixModule.UnescapeAddressComponent(parts[3]);
+                        if (parts.Length >= 5) txtRegion.Text = VCardixModule.UnescapeAddressComponent(parts[4]);
+                        if (parts.Length >= 6) txtPostal.Text = VCardixModule.UnescapeAddressComponent(parts[5]);
+                        if (parts.Length >= 7) txtCountry.Text = VCardixModule.UnescapeAddressComponent(parts[6]);
                     }
                 }
             }catch (Exception) { }
@@ -94,9 +94,9 @@ namespace VCardix{
             foreach (var p in parts) { if (!string.IsNullOrEmpty(p)) { hasAnyContent = true; break; } }
             if (hasAnyContent){
                 // Store as RFC 6350 semicolon-separated: POBox;Extended;Street;City;Region;Postal;Country
-                string fullAddress = string.Join(";", parts);
+                string fullAddress = VCardixModule.JoinStoredAddress(parts);
                 if (Application.OpenForms["VCardixMain"] is VCardixMain transfer_main_form){
-                    transfer_main_form.textBoxAddress.Text = fullAddress;
+                    transfer_main_form.textBoxAddress.Text = VCardixModule.AddressForDisplay(fullAddress);
                     transfer_main_form.BtnOpenAdressWindow.Invalidate();
                     transfer_main_form.BtnOpenAdressWindow.Update();
                 }

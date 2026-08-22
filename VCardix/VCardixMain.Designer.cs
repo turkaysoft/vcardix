@@ -875,7 +875,7 @@
             // 
             this.lightThemeToolStripMenuItem.Name = "lightThemeToolStripMenuItem";
             this.lightThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F1;
-            this.lightThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.lightThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
             this.lightThemeToolStripMenuItem.Text = "Light Theme";
             this.lightThemeToolStripMenuItem.Click += new System.EventHandler(this.LightThemeToolStripMenuItem_Click);
             // 
@@ -883,7 +883,7 @@
             // 
             this.darkThemeToolStripMenuItem.Name = "darkThemeToolStripMenuItem";
             this.darkThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F2;
-            this.darkThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.darkThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
             this.darkThemeToolStripMenuItem.Text = "Dark Theme";
             this.darkThemeToolStripMenuItem.Click += new System.EventHandler(this.DarkThemeToolStripMenuItem_Click);
             // 
@@ -891,7 +891,7 @@
             // 
             this.systemThemeToolStripMenuItem.Name = "systemThemeToolStripMenuItem";
             this.systemThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F3;
-            this.systemThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.systemThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
             this.systemThemeToolStripMenuItem.Text = "System Theme";
             this.systemThemeToolStripMenuItem.Click += new System.EventHandler(this.SystemThemeToolStripMenuItem_Click);
             // 
@@ -1072,33 +1072,33 @@
             this.cxSaveImageToolStripMenuItem,
             this.cxRemoveImageToolStripMenuItem});
             this.CXImageMenu.Name = "contextMenuStrip1";
-            this.CXImageMenu.Size = new System.Drawing.Size(164, 92);
+            this.CXImageMenu.Size = new System.Drawing.Size(165, 92);
             // 
             // cxImageSelectToolStripMenuItem
             // 
             this.cxImageSelectToolStripMenuItem.Name = "cxImageSelectToolStripMenuItem";
-            this.cxImageSelectToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.cxImageSelectToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.cxImageSelectToolStripMenuItem.Text = "CxImageSelect";
             this.cxImageSelectToolStripMenuItem.Click += new System.EventHandler(this.CxImageSelectToolStripMenuItem_Click);
             // 
             // cxViewImageToolStripMenuItem
             // 
             this.cxViewImageToolStripMenuItem.Name = "cxViewImageToolStripMenuItem";
-            this.cxViewImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.cxViewImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.cxViewImageToolStripMenuItem.Text = "CxViewImage";
             this.cxViewImageToolStripMenuItem.Click += new System.EventHandler(this.CxViewImageToolStripMenuItem_Click);
             // 
             // cxSaveImageToolStripMenuItem
             // 
             this.cxSaveImageToolStripMenuItem.Name = "cxSaveImageToolStripMenuItem";
-            this.cxSaveImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.cxSaveImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.cxSaveImageToolStripMenuItem.Text = "CxSaveImage";
             this.cxSaveImageToolStripMenuItem.Click += new System.EventHandler(this.CxSaveImageToolStripMenuItem_Click);
             // 
             // cxRemoveImageToolStripMenuItem
             // 
             this.cxRemoveImageToolStripMenuItem.Name = "cxRemoveImageToolStripMenuItem";
-            this.cxRemoveImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.cxRemoveImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.cxRemoveImageToolStripMenuItem.Text = "CxRemoveImage";
             this.cxRemoveImageToolStripMenuItem.Click += new System.EventHandler(this.CxRemoveImageToolStripMenuItem_Click);
             // 
