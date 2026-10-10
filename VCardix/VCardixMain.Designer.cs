@@ -106,7 +106,7 @@
             this.startupToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.windowedToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fullScreenToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.checkForUpdateToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.checkForUpdatesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.donateToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.MainToolTip = new System.Windows.Forms.ToolTip(this.components);
@@ -743,7 +743,7 @@
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.importFileToolStripMenuItem,
             this.exportFileToolStripMenuItem});
-            this.fileToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.fileToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
             this.fileToolStripMenuItem.Text = "File";
@@ -770,7 +770,7 @@
             this.vcard21ToolStripMenuItem,
             this.vcard30ToolStripMenuItem,
             this.vcard40ToolStripMenuItem});
-            this.vCardVersionToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.vCardVersionToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.vCardVersionToolStripMenuItem.Name = "vCardVersionToolStripMenuItem";
             this.vCardVersionToolStripMenuItem.Size = new System.Drawing.Size(89, 20);
             this.vCardVersionToolStripMenuItem.Text = "VCardVersion";
@@ -806,7 +806,7 @@
             this.sortingFirstNameToolStripMenuItem,
             this.sortingLastNameToolStripMenuItem,
             this.sortingPhoneToolStripMenuItem});
-            this.sortingModeToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.sortingModeToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.sortingModeToolStripMenuItem.Name = "sortingModeToolStripMenuItem";
             this.sortingModeToolStripMenuItem.Size = new System.Drawing.Size(88, 20);
             this.sortingModeToolStripMenuItem.Text = "SortingMode";
@@ -855,8 +855,8 @@
             this.themeToolStripMenuItem,
             this.languageToolStripMenuItem,
             this.startupToolStripMenuItem,
-            this.checkForUpdateToolStripMenuItem});
-            this.settingsToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.checkForUpdatesToolStripMenuItem});
+            this.settingsToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             this.settingsToolStripMenuItem.Size = new System.Drawing.Size(61, 20);
             this.settingsToolStripMenuItem.Text = "Settings";
@@ -875,7 +875,7 @@
             // 
             this.lightThemeToolStripMenuItem.Name = "lightThemeToolStripMenuItem";
             this.lightThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F1;
-            this.lightThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
+            this.lightThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.lightThemeToolStripMenuItem.Text = "Light Theme";
             this.lightThemeToolStripMenuItem.Click += new System.EventHandler(this.LightThemeToolStripMenuItem_Click);
             // 
@@ -883,7 +883,7 @@
             // 
             this.darkThemeToolStripMenuItem.Name = "darkThemeToolStripMenuItem";
             this.darkThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F2;
-            this.darkThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
+            this.darkThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.darkThemeToolStripMenuItem.Text = "Dark Theme";
             this.darkThemeToolStripMenuItem.Click += new System.EventHandler(this.DarkThemeToolStripMenuItem_Click);
             // 
@@ -891,7 +891,7 @@
             // 
             this.systemThemeToolStripMenuItem.Name = "systemThemeToolStripMenuItem";
             this.systemThemeToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F3;
-            this.systemThemeToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
+            this.systemThemeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.systemThemeToolStripMenuItem.Text = "System Theme";
             this.systemThemeToolStripMenuItem.Click += new System.EventHandler(this.SystemThemeToolStripMenuItem_Click);
             // 
@@ -1032,17 +1032,17 @@
             this.fullScreenToolStripMenuItem.Text = "Full Screen";
             this.fullScreenToolStripMenuItem.Click += new System.EventHandler(this.FullScreenToolStripMenuItem_Click);
             // 
-            // checkForUpdateToolStripMenuItem
+            // checkForUpdatesToolStripMenuItem
             // 
-            this.checkForUpdateToolStripMenuItem.Name = "checkForUpdateToolStripMenuItem";
-            this.checkForUpdateToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F11;
-            this.checkForUpdateToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
-            this.checkForUpdateToolStripMenuItem.Text = "checkupdate";
-            this.checkForUpdateToolStripMenuItem.Click += new System.EventHandler(this.CheckForUpdateToolStripMenuItem_Click);
+            this.checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
+            this.checkForUpdatesToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F11;
+            this.checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
+            this.checkForUpdatesToolStripMenuItem.Text = "checkupdate";
+            this.checkForUpdatesToolStripMenuItem.Click += new System.EventHandler(this.CheckForUpdatesToolStripMenuItem_Click);
             // 
             // donateToolStripMenuItem
             // 
-            this.donateToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.donateToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.donateToolStripMenuItem.Name = "donateToolStripMenuItem";
             this.donateToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt) 
             | System.Windows.Forms.Keys.D)));
@@ -1052,7 +1052,7 @@
             // 
             // aboutToolStripMenuItem
             // 
-            this.aboutToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.aboutToolStripMenuItem.ImageAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             this.aboutToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F12;
             this.aboutToolStripMenuItem.Size = new System.Drawing.Size(52, 20);
@@ -1072,33 +1072,33 @@
             this.cxSaveImageToolStripMenuItem,
             this.cxRemoveImageToolStripMenuItem});
             this.CXImageMenu.Name = "contextMenuStrip1";
-            this.CXImageMenu.Size = new System.Drawing.Size(165, 92);
+            this.CXImageMenu.Size = new System.Drawing.Size(164, 92);
             // 
             // cxImageSelectToolStripMenuItem
             // 
             this.cxImageSelectToolStripMenuItem.Name = "cxImageSelectToolStripMenuItem";
-            this.cxImageSelectToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.cxImageSelectToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.cxImageSelectToolStripMenuItem.Text = "CxImageSelect";
             this.cxImageSelectToolStripMenuItem.Click += new System.EventHandler(this.CxImageSelectToolStripMenuItem_Click);
             // 
             // cxViewImageToolStripMenuItem
             // 
             this.cxViewImageToolStripMenuItem.Name = "cxViewImageToolStripMenuItem";
-            this.cxViewImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.cxViewImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.cxViewImageToolStripMenuItem.Text = "CxViewImage";
             this.cxViewImageToolStripMenuItem.Click += new System.EventHandler(this.CxViewImageToolStripMenuItem_Click);
             // 
             // cxSaveImageToolStripMenuItem
             // 
             this.cxSaveImageToolStripMenuItem.Name = "cxSaveImageToolStripMenuItem";
-            this.cxSaveImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.cxSaveImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.cxSaveImageToolStripMenuItem.Text = "CxSaveImage";
             this.cxSaveImageToolStripMenuItem.Click += new System.EventHandler(this.CxSaveImageToolStripMenuItem_Click);
             // 
             // cxRemoveImageToolStripMenuItem
             // 
             this.cxRemoveImageToolStripMenuItem.Name = "cxRemoveImageToolStripMenuItem";
-            this.cxRemoveImageToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.cxRemoveImageToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.cxRemoveImageToolStripMenuItem.Text = "CxRemoveImage";
             this.cxRemoveImageToolStripMenuItem.Click += new System.EventHandler(this.CxRemoveImageToolStripMenuItem_Click);
             // 
@@ -1187,7 +1187,7 @@
         private System.Windows.Forms.ToolStripMenuItem startupToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem windowedToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fullScreenToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem checkForUpdateToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem checkForUpdatesToolStripMenuItem;
         public System.Windows.Forms.TextBox textBoxAddress;
         private System.Windows.Forms.ContextMenuStrip CXImageMenu;
         private System.Windows.Forms.ToolStripMenuItem cxImageSelectToolStripMenuItem;

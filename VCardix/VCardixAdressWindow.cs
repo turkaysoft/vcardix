@@ -9,6 +9,18 @@ namespace VCardix{
         public VCardixAdressWindow(){ InitializeComponent(); }
         // LOAD
         // ======================================================================================================
+        protected override void OnDpiChanged(DpiChangedEventArgs e){
+            base.OnDpiChanged(e);
+            try{
+                try{
+                    BtnSave.Height = txtCountry.Height + 10;
+                    BtnCancel.Height = txtCountry.Height + 10;
+                }catch{ }
+                Adress_window_preloader();
+                this.PerformLayout();
+                this.Invalidate(true);
+            }catch{ }
+        }
         private void VCardixAdressWindow_Load(object sender, EventArgs e){
             BtnSave.Height = txtCountry.Height + 10;
             BtnCancel.Height = txtCountry.Height + 10;

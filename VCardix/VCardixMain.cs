@@ -67,8 +67,9 @@ namespace VCardix{
             russianToolStripMenuItem.Click += LanguageToolStripMenuItem_Click;
             spanishToolStripMenuItem.Click += LanguageToolStripMenuItem_Click;
             turkishToolStripMenuItem.Click += LanguageToolStripMenuItem_Click;
-            //
-            SystemEvents.UserPreferenceChanged += (s, e) => TSUseSystemTheme();
+            // DYNAMIC THEME LISTENER
+            // ==================
+            SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             // Set the flag to true when the user manually changes their birthdate
             dateTimePickerBirthday.ValueChanged += (s, e) => { if (autoSaveEnabled) { birthdayUserChanged = true; OnDataChanged(); } };
             // Set the flag to true when the user manually changes the address
@@ -118,7 +119,7 @@ namespace VCardix{
             protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e){
                 Graphics g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                float dpiScale = g.DpiX / 96f;
+                float dpiScale = TSDpiHelper.Scale(g.DpiX);
                 Rectangle rect = e.ImageRectangle;
                 using (Pen anti_alias_pen = new Pen(header_colors[2], 2.2f * dpiScale)){
                     anti_alias_pen.StartCap = LineCap.Round;
@@ -132,6 +133,8 @@ namespace VCardix{
             }
         }
         private class HeaderColors : ProfessionalColorTable{
+            public override Color MenuStripGradientBegin => header_colors[0];
+            public override Color MenuStripGradientEnd => header_colors[0];
             public override Color MenuItemSelected => header_colors[0];
             public override Color ToolStripDropDownBackground => header_colors[0];
             public override Color ImageMarginGradientBegin => header_colors[0];
@@ -154,6 +157,7 @@ namespace VCardix{
         // LOAD SOFTWARE SETTINGS
         // ======================================================================================================
         private void RunSoftwareEngine(){
+            try { TSDpiHelper.ScaleToolStripRecursive(HeaderMenu, this.DeviceDpi); } catch { }
             // DOUBLE BUFFER TABLE
             // THEME - LANG - STARTUP MODE PRELOADER
             // ======================================================================================================
@@ -199,6 +203,27 @@ namespace VCardix{
         // MAIN TOOLTIP SETTINGS
         // ======================================================================================================
         private void MainToolTip_Draw(object sender, DrawToolTipEventArgs e){ e.DrawBackground(); e.DrawBorder(); e.DrawText(); }
+        // DPI SCALING
+        // ======================================================================================================
+        private void ApplyDpiScaling(){
+            if (IsDisposed || Disposing) return;
+            TSDpiHelper.ScaleToolStripRecursive(HeaderMenu, this.DeviceDpi);
+            try{
+                BtnOpenAdressWindow.Height = textBoxAddress.Height + 2;
+            }catch{ }
+        }
+        protected override void OnDpiChanged(DpiChangedEventArgs e){
+            base.OnDpiChanged(e);
+            try{
+                this.SuspendLayout();
+                ApplyDpiScaling();
+                if (e.DeviceDpiNew != e.DeviceDpiOld)
+                    Theme_engine(theme);
+                this.ResumeLayout(true);
+                this.PerformLayout();
+                this.Invalidate(true);
+            }catch{ }
+        }
         // LOAD
         // ====================================================================================================== 
         private void VCardix_Load(object sender, EventArgs e){
@@ -207,8 +232,10 @@ namespace VCardix{
             CXImageMenu.Cursor = Cursors.Hand;
             // LOAD MODULE PRELOAD
             RunSoftwareEngine();
-            //
-            Task.Run(() => Software_update_check(0));
+            ApplyDpiScaling();
+            // SOFTWARE UPDATE CHECK NATIVE
+            // ====================================
+            try { _ = Software_update_check(0); } catch (Exception) { }
         }
         // GET PERSON DATA FROM INPUTS
         // ====================================================================================================== 
@@ -1004,7 +1031,18 @@ namespace VCardix{
         private void DarkThemeToolStripMenuItem_Click(object sender, EventArgs e){
             themeSystem = 0; Theme_engine(0); SaveTheme(0); Select_theme_active(sender);
         }
-        private void TSUseSystemTheme() { if (themeSystem == 2) Theme_engine(TSThemeModeHelper.GetSystemTheme(2)); }
+        private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e){
+            TSUseSystemTheme();
+        }
+        private void TSUseSystemTheme(){
+            if (themeSystem != 2) return;
+            if (IsDisposed || Disposing) return;
+            if (InvokeRequired){
+                try { BeginInvoke(new Action(() => TSUseSystemTheme())); } catch { }
+                return;
+            }
+            Theme_engine(TSThemeModeHelper.GetSystemTheme(2));
+        }
         private void SaveTheme(int ts){
             // SAVE CURRENT THEME
             try{
@@ -1016,6 +1054,7 @@ namespace VCardix{
         // ======================================================================================================
         private void Theme_engine(int ts){
             try{
+                try { TSDpiHelper.ScaleToolStripRecursive(HeaderMenu, this.DeviceDpi); } catch { }
                 theme = ts;
                 //
                 TSThemeModeHelper.SetThemeMode(ts == 0);
@@ -1023,21 +1062,21 @@ namespace VCardix{
                 //
                 if (theme == 1){
                     // FILE
-                    TSImageRenderer(fileToolStripMenuItem, Properties.Resources.tm_file_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(importFileToolStripMenuItem, Properties.Resources.tm_import_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(exportFileToolStripMenuItem, Properties.Resources.tm_export_light, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(fileToolStripMenuItem, Properties.Resources.tm_file_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(importFileToolStripMenuItem, Properties.Resources.tm_import_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(exportFileToolStripMenuItem, Properties.Resources.tm_export_light, 0, ContentAlignment.MiddleCenter);
                     // VCARD VERSION
-                    TSImageRenderer(vCardVersionToolStripMenuItem, Properties.Resources.tm_vcard_light, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(vCardVersionToolStripMenuItem, Properties.Resources.tm_vcard_light, 0, ContentAlignment.MiddleCenter);
                     // SORTING MODE
-                    TSImageRenderer(sortingModeToolStripMenuItem, Properties.Resources.tm_sorting_mode_light, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(sortingModeToolStripMenuItem, Properties.Resources.tm_sorting_mode_light, 0, ContentAlignment.MiddleCenter);
                     // SETTINGS
-                    TSImageRenderer(settingsToolStripMenuItem, Properties.Resources.tm_settings_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(themeToolStripMenuItem, Properties.Resources.tm_theme_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(languageToolStripMenuItem, Properties.Resources.tm_language_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(startupToolStripMenuItem, Properties.Resources.tm_startup_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(checkForUpdateToolStripMenuItem, Properties.Resources.tm_update_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(donateToolStripMenuItem, Properties.Resources.tm_donate_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(aboutToolStripMenuItem, Properties.Resources.tm_about_light, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(settingsToolStripMenuItem, Properties.Resources.tm_settings_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(themeToolStripMenuItem, Properties.Resources.tm_theme_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(languageToolStripMenuItem, Properties.Resources.tm_language_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(startupToolStripMenuItem, Properties.Resources.tm_startup_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(checkForUpdatesToolStripMenuItem, Properties.Resources.tm_update_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(donateToolStripMenuItem, Properties.Resources.tm_donate_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(aboutToolStripMenuItem, Properties.Resources.tm_about_light, 0, ContentAlignment.MiddleCenter);
                     //
                     TSImageRenderer(BtnAdd, Properties.Resources.ct_add_light, 18, ContentAlignment.MiddleLeft);
                     TSImageRenderer(BtnUpdate, Properties.Resources.ct_update_light, 18, ContentAlignment.MiddleLeft);
@@ -1045,27 +1084,27 @@ namespace VCardix{
                     //
                     TSImageRenderer(BtnOpenAdressWindow, Properties.Resources.ct_adress_window_light, 13, ContentAlignment.MiddleCenter);
                     // PHOTO MODE
-                    TSImageRenderer(cxImageSelectToolStripMenuItem, Properties.Resources.ct_select_image_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxViewImageToolStripMenuItem, Properties.Resources.ct_show_image_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxSaveImageToolStripMenuItem, Properties.Resources.ct_save_image_light, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxRemoveImageToolStripMenuItem, Properties.Resources.ct_delete_image_light, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(cxImageSelectToolStripMenuItem, Properties.Resources.ct_select_image_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxViewImageToolStripMenuItem, Properties.Resources.ct_show_image_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxSaveImageToolStripMenuItem, Properties.Resources.ct_save_image_light, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxRemoveImageToolStripMenuItem, Properties.Resources.ct_delete_image_light, 0, ContentAlignment.MiddleCenter);
                 }else if (theme == 0){
                     // FILE
-                    TSImageRenderer(fileToolStripMenuItem, Properties.Resources.tm_file_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(importFileToolStripMenuItem, Properties.Resources.tm_import_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(exportFileToolStripMenuItem, Properties.Resources.tm_export_dark, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(fileToolStripMenuItem, Properties.Resources.tm_file_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(importFileToolStripMenuItem, Properties.Resources.tm_import_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(exportFileToolStripMenuItem, Properties.Resources.tm_export_dark, 0, ContentAlignment.MiddleCenter);
                     // VCARD VERSION
-                    TSImageRenderer(vCardVersionToolStripMenuItem, Properties.Resources.tm_vcard_dark, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(vCardVersionToolStripMenuItem, Properties.Resources.tm_vcard_dark, 0, ContentAlignment.MiddleCenter);
                     // SORTING MODE
-                    TSImageRenderer(sortingModeToolStripMenuItem, Properties.Resources.tm_sorting_mode_dark, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(sortingModeToolStripMenuItem, Properties.Resources.tm_sorting_mode_dark, 0, ContentAlignment.MiddleCenter);
                     // SETTINGS
-                    TSImageRenderer(settingsToolStripMenuItem, Properties.Resources.tm_settings_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(themeToolStripMenuItem, Properties.Resources.tm_theme_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(languageToolStripMenuItem, Properties.Resources.tm_language_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(startupToolStripMenuItem, Properties.Resources.tm_startup_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(checkForUpdateToolStripMenuItem, Properties.Resources.tm_update_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(donateToolStripMenuItem, Properties.Resources.tm_donate_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(aboutToolStripMenuItem, Properties.Resources.tm_about_dark, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(settingsToolStripMenuItem, Properties.Resources.tm_settings_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(themeToolStripMenuItem, Properties.Resources.tm_theme_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(languageToolStripMenuItem, Properties.Resources.tm_language_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(startupToolStripMenuItem, Properties.Resources.tm_startup_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(checkForUpdatesToolStripMenuItem, Properties.Resources.tm_update_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(donateToolStripMenuItem, Properties.Resources.tm_donate_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(aboutToolStripMenuItem, Properties.Resources.tm_about_dark, 0, ContentAlignment.MiddleCenter);
                     //
                     TSImageRenderer(BtnAdd, Properties.Resources.ct_add_dark, 18, ContentAlignment.MiddleLeft);
                     TSImageRenderer(BtnUpdate, Properties.Resources.ct_update_dark, 18, ContentAlignment.MiddleLeft);
@@ -1073,10 +1112,10 @@ namespace VCardix{
                     //
                     TSImageRenderer(BtnOpenAdressWindow, Properties.Resources.ct_adress_window_dark, 13, ContentAlignment.MiddleCenter);
                     // PHOTO MODE
-                    TSImageRenderer(cxImageSelectToolStripMenuItem, Properties.Resources.ct_select_image_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxViewImageToolStripMenuItem, Properties.Resources.ct_show_image_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxSaveImageToolStripMenuItem, Properties.Resources.ct_save_image_dark, 0, ContentAlignment.MiddleRight);
-                    TSImageRenderer(cxRemoveImageToolStripMenuItem, Properties.Resources.ct_delete_image_dark, 0, ContentAlignment.MiddleRight);
+                    TSImageRenderer(cxImageSelectToolStripMenuItem, Properties.Resources.ct_select_image_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxViewImageToolStripMenuItem, Properties.Resources.ct_show_image_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxSaveImageToolStripMenuItem, Properties.Resources.ct_save_image_dark, 0, ContentAlignment.MiddleCenter);
+                    TSImageRenderer(cxRemoveImageToolStripMenuItem, Properties.Resources.ct_delete_image_dark, 0, ContentAlignment.MiddleCenter);
                 }
                 // HEADER
                 header_colors[0] = TS_ThemeEngine.ColorMode(theme, "TSBT_BGColor2");
@@ -1270,7 +1309,7 @@ namespace VCardix{
                 windowedToolStripMenuItem.Text = software_lang.TSReadLangs("HeaderViewMode", "header_view_mode_windowed");
                 fullScreenToolStripMenuItem.Text = software_lang.TSReadLangs("HeaderViewMode", "header_view_mode_full_screen");
                 // UPDATE
-                checkForUpdateToolStripMenuItem.Text = software_lang.TSReadLangs("HeaderMenu", "header_menu_update");
+                checkForUpdatesToolStripMenuItem.Text = software_lang.TSReadLangs("HeaderMenu", "header_menu_update");
                 // DONATE
                 donateToolStripMenuItem.Text = software_lang.TSReadLangs("HeaderMenu", "header_menu_donate");
                 // ABOUT
@@ -1348,10 +1387,12 @@ namespace VCardix{
         }
         // UPDATE CHECK ENGINE
         // ======================================================================================================
-        private void CheckForUpdateToolStripMenuItem_Click(object sender, EventArgs e){
-            Task.Run(() => Software_update_check(1));
+        private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e){
+            try{
+                _ = Software_update_check(1);
+            }catch (Exception){ }
         }
-        public async void Software_update_check(int _check_update_ui){
+        public async Task Software_update_check(int _check_update_ui){
             try{
                 TSGetLangs software_lang = new TSGetLangs(lang_path);
                 SetUpdateMenuEnabled(false);
@@ -1365,7 +1406,7 @@ namespace VCardix{
                     handler.UseProxy = false;
                     using (HttpClient httpClient = new HttpClient(handler)){
                         httpClient.Timeout = TimeSpan.FromSeconds(15);
-                        httpClient.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue{ NoCache = true, NoStore = true, MustRevalidate = true };
+                        httpClient.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true, MustRevalidate = true };
                         httpClient.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
                         string versionUrl = TS_LinkSystem.github_link_lv;
                         versionUrl += (versionUrl.Contains("?") ? "&" : "?") + "_ts=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -1408,18 +1449,23 @@ namespace VCardix{
                 }
             }catch (Exception ex){
                 Debug.WriteLine(ex, "Software_update_check()");
-                TSGetLangs software_lang = new TSGetLangs(lang_path);
-                TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("SoftwareUpdate", "su_error"), "\n\n", ex.Message), string.Format(software_lang.TSReadLangs("SoftwareUpdate", "su_title"), Application.ProductName));
+                if (_check_update_ui == 1 && !IsDisposed && !Disposing){
+                    TSGetLangs software_lang = new TSGetLangs(lang_path);
+                    TS_MessageBoxEngine.TS_MessageBox(this, 3, string.Format(software_lang.TSReadLangs("SoftwareUpdate", "su_error"), "\n\n", ex.Message), string.Format(software_lang.TSReadLangs("SoftwareUpdate", "su_title"), Application.ProductName));
+                }
             }finally{
                 SetUpdateMenuEnabled(true);
             }
         }
         private void SetUpdateMenuEnabled(bool enabled){
-            if (InvokeRequired){
-                BeginInvoke(new Action(() => checkForUpdateToolStripMenuItem.Enabled = enabled));
-            }else{
-                checkForUpdateToolStripMenuItem.Enabled = enabled;
-            }
+            try{
+                if (IsDisposed || Disposing) return;
+                if (InvokeRequired){
+                    BeginInvoke(new Action(() => checkForUpdatesToolStripMenuItem.Enabled = enabled));
+                }else{
+                    checkForUpdatesToolStripMenuItem.Enabled = enabled;
+                }
+            }catch { }
         }
         // TS TOOL LAUNCHER MODULE
         // ======================================================================================================
@@ -1502,6 +1548,7 @@ namespace VCardix{
                     return;
                 }
             }
+            try { SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged; } catch { }
         }
     }
 }

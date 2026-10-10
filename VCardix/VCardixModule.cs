@@ -1491,7 +1491,7 @@ namespace VCardix{
                 old?.Dispose();
                 return;
             }
-            var resized = ResizeImageToDeviceDpi(newImage, pictureBox.Width, pictureBox.Height, pictureBox.DeviceDpi);
+            var resized = ResizeImageToDeviceDpi(newImage, pictureBox.Width, pictureBox.Height, TSDpiHelper.EffectiveDpi(pictureBox));
             pictureBox.Image = resized;
             if (old != null && !ReferenceEquals(old, newImage))
                 old.Dispose();
@@ -1499,7 +1499,7 @@ namespace VCardix{
         public static Image ResizeImageToDeviceDpi(Image img, int maxWidth, int maxHeight, int deviceDpi){
             int baseW = img.Width;
             int baseH = img.Height;
-            float scale = deviceDpi / 96f;
+            float scale = TSDpiHelper.Scale(deviceDpi);
             int scaledW = (int)(baseW * scale);
             int scaledH = (int)(baseH * scale);
             double ratio = Math.Min((double)maxWidth / scaledW, (double)maxHeight / scaledH);

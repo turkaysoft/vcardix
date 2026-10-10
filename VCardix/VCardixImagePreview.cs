@@ -11,6 +11,16 @@ namespace VCardix{
         public VCardixImagePreview(){ InitializeComponent(); }
         // LOAD
         // ======================================================================================================
+        protected override void OnDpiChanged(DpiChangedEventArgs e){
+            base.OnDpiChanged(e);
+            try{
+                Image_preview_preloader();
+                if (VCardixMain.select_object is PrefixModule c)
+                    TSImageHelper.SetPictureBoxImage(ImgPreview, c.PhotoImage);
+                this.PerformLayout();
+                this.Invalidate(true);
+            }catch{ }
+        }
         private async void VCardixImagePreview_Load(object sender, EventArgs e){
             Image_preview_preloader();
             try { await Task.Run(() => { AsyncLoadImage(); }); } catch (Exception) { }
