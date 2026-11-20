@@ -218,9 +218,41 @@ namespace VCardix{
         // ======================================================================================================
         private static string UnfoldVcfLines(string raw)
         {
+            if (string.IsNullOrEmpty(raw)) return raw;
             // RFC 6350  3.2: Lines can be folded by inserting CRLF followed by a single space or tab.
             // Unfolding removes the CRLF and the leading space/tab.
-            return Regex.Replace(raw, @"\r?\n[ \t]", "");
+            var unfolded = Regex.Replace(raw, @"\r?\n[ \t]", "");
+            var physicalLines = unfolded.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+            var logicalLines = new List<string>();
+            string currentLine = null;
+            bool quotedPrintableContinuation = false;
+
+            foreach (var physicalLine in physicalLines)
+            {
+                if (currentLine == null)
+                {
+                    currentLine = physicalLine;
+                    quotedPrintableContinuation = currentLine.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0
+                        && currentLine.EndsWith("=", StringComparison.Ordinal);
+                }
+                else if (quotedPrintableContinuation)
+                {
+                    currentLine = currentLine.Substring(0, currentLine.Length - 1) + physicalLine;
+                    quotedPrintableContinuation = currentLine.EndsWith("=", StringComparison.Ordinal);
+                }
+                else
+                {
+                    logicalLines.Add(currentLine);
+                    currentLine = physicalLine;
+                    quotedPrintableContinuation = currentLine.IndexOf("ENCODING=QUOTED-PRINTABLE", StringComparison.OrdinalIgnoreCase) >= 0
+                        && currentLine.EndsWith("=", StringComparison.Ordinal);
+                }
+            }
+
+            if (currentLine != null)
+                logicalLines.Add(currentLine);
+
+            return string.Join("\r\n", logicalLines);
         }
         // VCARD HELPER: RFC 6350  3.2 - Line Folding (insert CRLF + space every 75 bytes)
         // ======================================================================================================
@@ -441,7 +473,6 @@ namespace VCardix{
         // VCARD LOAD/SAVE
         // ======================================================================================================
         public void LoadVcf(string filePath){
-            contactsById.Clear();
             // Read raw content and unfold lines per RFC 6350  3.2
             var raw = File.ReadAllText(filePath, Encoding.UTF8);
             raw = UnfoldVcfLines(raw);
@@ -459,7 +490,7 @@ namespace VCardix{
                     currentBlock = null;
                 }
             }
-            var lockObj = new object();
+            var parsedContacts = new List<PrefixModule>();
             foreach (var block in vcardBlocks){
                 var current = new PrefixModule();
                 string blockVersion = null;
@@ -630,10 +661,12 @@ namespace VCardix{
                 }
                 // Track version per block but don't change global CurrentVersion (use last block's version)
                 // The global CurrentVersion is only set by user via UI
-                lock (lockObj){
-                    AddContact(current);
-                }
+                parsedContacts.Add(current);
             }
+
+            contactsById.Clear();
+            foreach (var contact in parsedContacts)
+                AddContact(contact);
         }
         // MERGE LOAD VCF: Adds contacts without clearing existing ones; skips duplicates based on name/phone
         // Returns the number of skipped (duplicate) contacts
@@ -1035,9 +1068,12 @@ namespace VCardix{
         // ======================================================================================================
         public void LoadCsv(string filePath)
         {
-            contactsById.Clear();
             var records = ParseCsvRecords(File.ReadAllText(filePath, Encoding.UTF8));
-            if (records.Count == 0) return;
+            if (records.Count == 0)
+            {
+                contactsById.Clear();
+                return;
+            }
             var headers = records[0];
             var map = BuildCsvHeaderMap(headers);
             var contactList = new PrefixModule[records.Count - 1];
@@ -1047,10 +1083,10 @@ namespace VCardix{
                 if (values.Length == 0 || values.All(v => string.IsNullOrEmpty(v))) return;
                 contactList[i - 1] = ParseCsvRow(headers, map, values);
             });
-            foreach (var contact in contactList)
-            {
-                if (contact != null) AddContact(contact);
-            }
+            var parsedContacts = contactList.Where(contact => contact != null).ToList();
+            contactsById.Clear();
+            foreach (var contact in parsedContacts)
+                AddContact(contact);
         }
         // MERGE LOAD CSV: Adds contacts without clearing existing ones; skips duplicates based on name/phone
         // Returns the number of skipped (duplicate) contacts
@@ -1413,18 +1449,22 @@ namespace VCardix{
         // JSON LOAD/SAVE
         // ======================================================================================================
         public void LoadJson(string filePath){
-            contactsById.Clear();
             if (!File.Exists(filePath)) return;
             string json = File.ReadAllText(filePath, Encoding.UTF8);
             if (string.IsNullOrWhiteSpace(json)) return;
             var serializer = new JavaScriptSerializer{ MaxJsonLength = Int32.MaxValue };
             var contacts = serializer.Deserialize<List<PrefixModule>>(json);
-            if (contacts == null || contacts.Count == 0) return;
-                        foreach (var contact in contacts){
+            if (contacts == null) return;
+            var parsedContacts = new List<PrefixModule>();
+            foreach (var contact in contacts){
+                if (contact == null) continue;
                 if (contact.Id == Guid.Empty)
                     contact.Id = Guid.NewGuid();
-                AddContact(contact);
+                parsedContacts.Add(contact);
             }
+            contactsById.Clear();
+            foreach (var contact in parsedContacts)
+                AddContact(contact);
         }
         // MERGE LOAD JSON: Adds contacts without clearing existing ones; skips duplicates based on name/phone
         // Returns the number of skipped (duplicate) contacts
@@ -1438,13 +1478,14 @@ namespace VCardix{
             if (contacts == null || contacts.Count == 0) return 0;
             int skippedCount = 0;
             foreach (var contact in contacts){
+                if (contact == null) continue;
                 // Check for duplicates before adding
                 bool isDuplicate = contactsById.Values.Any(existing => existing.IsDuplicateWith(contact));
                 if (!isDuplicate)
                 {
-                    if (contact.Id == Guid.Empty)
+                    if (contact.Id == Guid.Empty || contactsById.ContainsKey(contact.Id))
                         contact.Id = Guid.NewGuid();
-                    contactsById[contact.Id] = contact;
+                    AddContact(contact);
                 }
                 else
                 {
@@ -1455,15 +1496,32 @@ namespace VCardix{
         }
         public void SaveJson(string filePath){
             var serializer = new JavaScriptSerializer{ MaxJsonLength = Int32.MaxValue };
-            var orderedContacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? "")).ToList();
+            var orderedContacts = ContactsList.OrderBy(c => TSNaturalSortKey(c.FullName ?? ""))
+                .Select(c => new PrefixModule
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    MiddleName = c.MiddleName,
+                    LastName = c.LastName,
+                    Birthday = c.Birthday.HasValue
+                        ? DateTime.SpecifyKind(c.Birthday.Value.Date, DateTimeKind.Utc)
+                        : (DateTime?)null,
+                    PhoneMobile = c.PhoneMobile,
+                    PhoneHome = c.PhoneHome,
+                    PhoneWork = c.PhoneWork,
+                    Email1 = c.Email1,
+                    Email2 = c.Email2,
+                    Email3 = c.Email3,
+                    Address = c.Address,
+                    Organization = c.Organization,
+                    Website = c.Website,
+                    Note = c.Note,
+                    PhotoBase64 = c.PhotoBase64,
+                    CurrentDisplayMember = c.CurrentDisplayMember
+                }).ToList();
             // JavaScriptSerializer converts Unspecified/Local DateTime to UTC, shifting the date by the
             // local UTC offset (e.g. 17 May -> 16 May). Saving Birthday as Utc wall-clock keeps the
-            // date exact across round-trips. Kind is cosmetic for equality/formatting, so this is safe.
-            foreach (var c in orderedContacts)
-            {
-                if (c.Birthday.HasValue)
-                    c.Birthday = DateTime.SpecifyKind(c.Birthday.Value.Date, DateTimeKind.Utc);
-            }
+            // date exact across round-trips without mutating the in-memory contacts.
             string json = serializer.Serialize(orderedContacts);
             File.WriteAllText(filePath, json, Encoding.UTF8);
         }
@@ -1493,8 +1551,10 @@ namespace VCardix{
             }
             var resized = ResizeImageToDeviceDpi(newImage, pictureBox.Width, pictureBox.Height, TSDpiHelper.EffectiveDpi(pictureBox));
             pictureBox.Image = resized;
-            if (old != null && !ReferenceEquals(old, newImage))
+            if (old != null)
                 old.Dispose();
+            if (!ReferenceEquals(old, newImage))
+                newImage.Dispose();
         }
         public static Image ResizeImageToDeviceDpi(Image img, int maxWidth, int maxHeight, int deviceDpi){
             int baseW = img.Width;

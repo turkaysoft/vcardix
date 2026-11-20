@@ -23,12 +23,15 @@ namespace VCardix{
         }
         private async void VCardixImagePreview_Load(object sender, EventArgs e){
             Image_preview_preloader();
-            try { await Task.Run(() => { AsyncLoadImage(); }); } catch (Exception) { }
-        }
-        private void AsyncLoadImage(){
-            if (VCardixMain.select_object is PrefixModule c){
-                TSImageHelper.SetPictureBoxImage(ImgPreview, c.PhotoImage);
-            }
+            try {
+                var selectedContact = VCardixMain.select_object as PrefixModule;
+                var image = await Task.Run(() => selectedContact?.PhotoImage);
+                if (IsDisposed || Disposing){
+                    image?.Dispose();
+                    return;
+                }
+                TSImageHelper.SetPictureBoxImage(ImgPreview, image);
+            } catch (Exception) { }
         }
         // DYNAMIC UI
         // ======================================================================================================
