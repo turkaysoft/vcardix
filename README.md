@@ -37,7 +37,7 @@ You can support this project by making a donation to help ensure its sustainabil
 
 ## Interface Preview
 
-<img width="1010" height="633" alt="VCardix UI" src="https://github.com/user-attachments/assets/7b10d2e6-eeed-4260-a3e8-381887a3364a" />
+<img width="1010" height="633" alt="VCardix UI" src="https://github.com/user-attachments/assets/b0128e18-1388-455a-90d6-6df8cdf50c63" />
 
 ---
 
